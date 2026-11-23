@@ -1,7 +1,11 @@
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const https = require('https');
+const dns = require('dns');
+try { dns.setDefaultResultOrder('ipv4first'); } catch (e) {}
+const ipv4Agent = new https.Agent({ family: 4, keepAlive: true });
+const { spawn, execSync } = require('child_process');
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -10,7 +14,12 @@ const FormData = require('form-data');
 let ffmpegPath = 'ffmpeg';
 try {
   ffmpegPath = require('ffmpeg-static') || 'ffmpeg';
-} catch (e) {}
+} catch (e) {
+  try {
+    const pyFfmpeg = execSync('python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"', { encoding: 'utf8', timeout: 4000 }).trim();
+    if (pyFfmpeg && fs.existsSync(pyFfmpeg)) ffmpegPath = pyFfmpeg;
+  } catch (e2) {}
+}
 
 const BASE_DIR = __dirname;
 const DATA_FILE = path.join(BASE_DIR, 'data.json');
@@ -393,6 +402,7 @@ app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
 
     const tgResp = await axios.post(`${TG_API}/sendVideo`, form, {
       headers: form.getHeaders(),
+      httpsAgent: ipv4Agent,
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
       timeout: 90000
@@ -425,11 +435,14 @@ function fmtSum(amount) {
 
 async function tgCall(method, payload = {}, timeout = 25000) {
   try {
-    const r = await axios.post(`${TG_API}/${method}`, payload, { timeout });
-    return r.data;
+    const r = await fetch(`${TG_API}/${method}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+      signal: AbortSignal.timeout(timeout)
+    });
+    return await r.json();
   } catch (e) {
-    const data = e.response?.data;
-    if (data) return data;
     console.error(`[tgCall:${method}]`, e.message);
     return { ok: false, error: e.message };
   }

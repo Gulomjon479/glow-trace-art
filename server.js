@@ -937,13 +937,8 @@ function startTunnelOrKeepAlive() {
     if (process.env.RENDER_EXTERNAL_URL) {
       LIVE_WEBAPP_URL = process.env.RENDER_EXTERNAL_URL.replace(/\/+$/, '');
       setupBotMenu(LIVE_WEBAPP_URL).catch(() => {});
+      setTimeout(() => setupBotMenu(LIVE_WEBAPP_URL).catch(() => {}), 15000);
     }
-    setInterval(() => {
-      if (LIVE_WEBAPP_URL && LIVE_WEBAPP_URL.startsWith('https://')) {
-        setupBotMenu(LIVE_WEBAPP_URL).catch(() => {});
-        axios.get(`${LIVE_WEBAPP_URL}/health`, { timeout: 8000 }).catch(() => {});
-      }
-    }, 10 * 60 * 1000);
     return;
   }
 

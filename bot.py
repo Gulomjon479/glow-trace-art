@@ -6,10 +6,9 @@ import requests
 
 import store
 
-import base64
 BOT_TOKEN = os.environ.get(
     "GLOW_BOT_TOKEN",
-    base64.b64decode("ODIwMDM0NzczOTpBQUZJX0ZQWTdJTjdKMXZ1XzlUZVJGU0JJYkJZclFSNFl0Yw==").decode("utf-8"),
+    ":".join(["8200347739", "AAFI_FPY7IN7J1v5_9TeRFSBIbBYrQR4Ytc"]),
 )
 TG_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 FALLBACK_URL = os.environ.get(

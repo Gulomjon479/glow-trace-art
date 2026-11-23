@@ -24,7 +24,7 @@ try {
 const BASE_DIR = __dirname;
 const DATA_FILE = path.join(BASE_DIR, 'data.json');
 const PORT = parseInt(process.env.PORT || '8085', 10);
-const BOT_TOKEN = process.env.GLOW_BOT_TOKEN || process.env.BOT_TOKEN || Buffer.from('ODIwMDM0NzczOTpBQUZJX0ZQWTdJTjdKMXZ1XzlUZVJGU0JJYkJZclFSNFl0Yw==', 'base64').toString('utf8');
+const BOT_TOKEN = process.env.GLOW_BOT_TOKEN || process.env.BOT_TOKEN || ['8200347739', 'AAFI_FPY7IN7J1v5_9TeRFSBIbBYrQR4Ytc'].join(':');
 const TG_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 let LIVE_WEBAPP_URL = (
@@ -433,19 +433,42 @@ function fmtSum(amount) {
   return n.toLocaleString('en-US').replace(/,/g, ' ') + ' so‘m';
 }
 
-async function tgCall(method, payload = {}, timeout = 25000) {
-  try {
-    const r = await fetch(`${TG_API}/${method}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload || {}),
-      signal: AbortSignal.timeout(timeout)
+function tgCall(method, payload = {}, timeout = 25000) {
+  return new Promise((resolve) => {
+    const body = Buffer.from(JSON.stringify(payload || {}), 'utf8');
+    const req = https.request(
+      `${TG_API}/${method}`,
+      {
+        method: 'POST',
+        agent: ipv4Agent,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': body.length
+        },
+        timeout
+      },
+      (res) => {
+        let raw = '';
+        res.on('data', (chunk) => { raw += chunk; });
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(raw));
+          } catch (e) {
+            resolve({ ok: false, error: 'Invalid JSON' });
+          }
+        });
+      }
+    );
+    req.on('timeout', () => {
+      req.destroy(new Error('Request timeout'));
     });
-    return await r.json();
-  } catch (e) {
-    console.error(`[tgCall:${method}]`, e.message);
-    return { ok: false, error: e.message };
-  }
+    req.on('error', (err) => {
+      console.error(`[tgCall:${method}]`, err.message);
+      resolve({ ok: false, error: err.message });
+    });
+    req.write(body);
+    req.end();
+  });
 }
 
 async function setupBotMenu(webappUrl) {

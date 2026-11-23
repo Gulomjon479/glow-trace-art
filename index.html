@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Glow Trace Art — Yorqin Kontur Animatsiyasi</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="styles.css?v=10" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Left / Center Stage -->
+    <main class="stage-area" id="dropZone">
+      <div class="stage-topbar">
+        <div class="brand">
+          <span class="brand-star">✦</span>
+          <span class="brand-name">Glow Trace Art</span>
+          <span class="brand-badge">PRO</span>
+        </div>
+        <div class="stage-actions">
+          <button class="icon-btn" id="compareBtn" title="Asl rasm bilan solishtirish (bosib turing)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span>Asl rasm</span>
+          </button>
+          <button class="icon-btn" id="togglePanelBtn" title="Sozlamalarni yashirish / ko‘rsatish">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>
+            </svg>
+            <span>Sozlamalar</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="canvas-wrapper">
+        <canvas id="artCanvas"></canvas>
+        <div class="drop-overlay" id="dropOverlay">
+          <div class="drop-overlay-inner">
+            <span class="drop-icon">✦</span>
+            <p>Rasmlarni shu yerga tashlang</p>
+            <span class="drop-sub">Bir nechta rasm ham tashlashingiz mumkin (Ctrl+V ham ishlaydi)</span>
+          </div>
+        </div>
+        <div class="processing-badge" id="processingBadge">
+          <span class="spinner"></span>
+          <span>Qirralar aniq tahlil qilinmoqda...</span>
+        </div>
+        <div class="recording-badge" id="recordingBadge">
+          <span class="rec-dot"></span>
+          <span>Video yozilmoqda...</span>
+        </div>
+      </div>
+
+      <!-- Bottom Playback Bar -->
+      <div class="playback-bar">
+        <button class="play-btn" id="playPauseBtn" title="Ijro / Pauza (Space)">
+          <svg id="pauseIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16" rx="1"/>
+            <rect x="14" y="4" width="4" height="16" rx="1"/>
+          </svg>
+          <svg id="playIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+            <polygon points="6,4 20,12 6,20"/>
+          </svg>
+        </button>
+
+        <button class="ctrl-btn" id="replayBtn" title="Boshidan chizish">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </button>
+
+        <div class="timeline-wrap">
+          <input type="range" id="timelineSlider" min="0" max="24" step="0.05" value="0" />
+          <div class="timeline-meta">
+            <span id="timeLabel">0.0s / 24.0s</span>
+            <span id="phaseLabel">Chizilmoqda</span>
+          </div>
+        </div>
+
+        <label class="loop-toggle" title="Takrorlash (Loop)">
+          <input type="checkbox" id="loopToggle" checked />
+          <span>Loop</span>
+        </label>
+      </div>
+    </main>
+
+    <!-- Right Control Sidebar -->
+    <aside class="control-panel" id="controlPanel">
+      <div class="panel-section">
+        <div class="plan-banner" id="planBanner">
+          <span id="planBannerText">🎁 1-rasmingiz va animatsiyangiz BEPUL</span>
+          <button class="plan-topup-btn" id="openPaywallBtn" type="button">💎 Tarif</button>
+        </div>
+        <h3 class="section-title">Rasmlar</h3>
+        <div class="upload-row">
+          <label class="primary-btn upload-label" for="imageUpload">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span>Rasm yuklash</span>
+          </label>
+          <input type="file" id="imageUpload" accept="image/*" multiple hidden />
+          <button class="secondary-btn" id="resetImageBtn" title="Boshlang‘ich rasmga qaytish">Namuna</button>
+        </div>
+        <div class="gallery-strip" id="galleryStrip"></div>
+        <p class="hint-text">PNG, JPG, WebP — bir nechta rasm yuklash, sudrab tashlash yoki <b>Ctrl+V</b> mumkin.</p>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Qirra tahlil rejimi</h3>
+        <div class="segmented-grid" id="modeControl">
+          <button class="seg-btn active" data-mode="auto">Avto</button>
+          <button class="seg-btn" data-mode="sketch">Chizma</button>
+          <button class="seg-btn" data-mode="photo">Foto / Portret</button>
+          <button class="seg-btn" data-mode="artistic">Badiiy (XDoG)</button>
+        </div>
+        <div class="stats-row">
+          <span id="contourStats">Konturlar: —</span>
+          <span id="detectedModeBadge" class="detected-badge"></span>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Animatsiya uslubi</h3>
+        <div class="anim-grid" id="animStyleControl">
+          <button class="anim-chip anim-chip-wide active" data-anim="binary">
+            <span class="anim-icon">💻</span>
+            <span>Matrix 0/1 (Dasturchi)</span>
+          </button>
+          <button class="anim-chip anim-chip-wide" data-anim="holo3d">
+            <span class="anim-icon">🧊</span>
+            <span>3D Gologramma (3D Aylanish)</span>
+          </button>
+          <button class="anim-chip anim-chip-wide" data-anim="topdown">
+            <span class="anim-icon">🌠</span>
+            <span>Tepadan zarracha yig‘ilish</span>
+          </button>
+          <button class="anim-chip anim-chip-wide" data-anim="velnox">
+            <span class="anim-icon">🎭</span>
+            <span>X-Ray → Neon Burilish</span>
+          </button>
+          <button class="anim-chip anim-chip-wide" data-anim="bloom">
+            <span class="anim-icon">🌸</span>
+            <span>Zarracha gullashi (Bloom Grow)</span>
+          </button>
+          <button class="anim-chip anim-chip-wide" data-anim="rocket">
+            <span class="anim-icon">🚀</span>
+            <span>Raketa portlashi (Yig‘ilish)</span>
+          </button>
+          <button class="anim-chip" data-anim="meteor">
+            <span class="anim-icon">☄️</span>
+            <span>Meteor zarbasi</span>
+          </button>
+          <button class="anim-chip" data-anim="supernova">
+            <span class="anim-icon">💥</span>
+            <span>Supernova</span>
+          </button>
+          <button class="anim-chip" data-anim="celestial">
+            <span class="anim-icon">✦</span>
+            <span>Nurli chizish</span>
+          </button>
+          <button class="anim-chip" data-anim="vortex">
+            <span class="anim-icon">🌌</span>
+            <span>Zarrachalar</span>
+          </button>
+          <button class="anim-chip" data-anim="lightning">
+            <span class="anim-icon">⚡</span>
+            <span>Chaqmoq</span>
+          </button>
+          <button class="anim-chip" data-anim="aurora">
+            <span class="anim-icon">🌊</span>
+            <span>Ipak to‘lqin</span>
+          </button>
+          <button class="anim-chip anim-chip-wide" data-anim="phoenix">
+            <span class="anim-icon">🔥</span>
+            <span>Olovli uchqunlar (Phoenix)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Rang palitrasi</h3>
+        <div class="palette-grid" id="paletteGrid">
+          <button class="palette-chip active" data-palette="silver">
+            <span class="swatch swatch-silver"></span>
+            <span>Kumush</span>
+          </button>
+          <button class="palette-chip" data-palette="cosmic">
+            <span class="swatch swatch-cosmic"></span>
+            <span>Kosmik</span>
+          </button>
+          <button class="palette-chip" data-palette="original">
+            <span class="swatch swatch-original"></span>
+            <span>Asl rang</span>
+          </button>
+          <button class="palette-chip" data-palette="gold">
+            <span class="swatch swatch-gold"></span>
+            <span>Oltin</span>
+          </button>
+          <button class="palette-chip" data-palette="nebula">
+            <span class="swatch swatch-nebula"></span>
+            <span>Binafsha</span>
+          </button>
+          <button class="palette-chip" data-palette="aurora">
+            <span class="swatch swatch-aurora"></span>
+            <span>Zumrad</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Ichki soya (Fill)</h3>
+        <div class="segmented-control" id="fillModeControl">
+          <button class="seg-btn active" data-fill="tint">Yorqin soya</button>
+          <button class="seg-btn" data-fill="photo">Asl rasm</button>
+          <button class="seg-btn" data-fill="none">Faqat kontur</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Effekt sozlamalari</h3>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="sensitivitySlider">Qirra aniqligi (Detallar)</label>
+            <span id="sensitivityVal">60%</span>
+          </div>
+          <input type="range" id="sensitivitySlider" min="15" max="95" value="60" />
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="cleanSlider">Shovqinni tozalash</label>
+            <span id="cleanVal">45%</span>
+          </div>
+          <input type="range" id="cleanSlider" min="0" max="100" value="45" />
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="glowSlider">Yorqinlik (Bloom)</label>
+            <span id="glowVal">115%</span>
+          </div>
+          <input type="range" id="glowSlider" min="25" max="200" value="115" />
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="lineWidthSlider">Chiziq qalinligi</label>
+            <span id="lineWidthVal">1.25px</span>
+          </div>
+          <input type="range" id="lineWidthSlider" min="0.6" max="2.6" step="0.05" value="1.25" />
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="twinklesSlider">Yulduzchalar (✦)</label>
+            <span id="twinklesVal">52</span>
+          </div>
+          <input type="range" id="twinklesSlider" min="0" max="110" value="52" />
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label for="speedSlider">Animatsiya tezligi</label>
+            <span id="speedVal">1.0x</span>
+          </div>
+          <input type="range" id="speedSlider" min="0.4" max="2.5" step="0.1" value="1.0" />
+        </div>
+
+        <div class="toggle-row">
+          <label class="switch-label">
+            <input type="checkbox" id="shimmerToggle" checked />
+            <span>Tovlanish to‘lqini (Shimmer)</span>
+          </label>
+          <label class="switch-label">
+            <input type="checkbox" id="bloomToggle" checked />
+            <span>Kino-sifatli nur (Optical Bloom)</span>
+          </label>
+          <label class="switch-label">
+            <input type="checkbox" id="sparksToggle" checked />
+            <span>Jonli uchqunlar va energiya oqimi</span>
+          </label>
+          <label class="switch-label">
+            <input type="checkbox" id="cinemaZoomToggle" checked />
+            <span>Kino-kamera harakati (Zoom)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Pastki yozuv (ixtiyoriy)</h3>
+        <input
+          type="text"
+          id="quoteInput"
+          class="text-input"
+          value="Ularning qanotlari hech qachon sinmaydi."
+          placeholder="Matn kiriting yoki bo‘sh qoldiring..."
+        />
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Saqlash va Telegram Bot</h3>
+        <div class="export-row">
+          <button class="secondary-btn" id="savePngBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span>PNG (HD)</span>
+          </button>
+          <button class="secondary-btn" id="recordVideoBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="9"/>
+              <circle cx="12" cy="12" r="3" fill="currentColor"/>
+            </svg>
+            <span id="recordBtnText">Video (WebM)</span>
+          </button>
+        </div>
+
+        <button class="telegram-btn" id="sendTelegramBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M21.9 4.2c.3-1.1-.7-2-1.8-1.6L2.7 9.4c-1.2.5-1.1 2.2.1 2.5l4.4 1.4 1.7 5.3c.3 1 1.6 1.2 2.3.5l2.5-2.5 4.4 3.2c.9.7 2.2.2 2.4-.9L21.9 4.2zM8.7 12.6l8.9-5.6-7.1 7.1-.3 3.2-1.5-4.7z"/>
+          </svg>
+          <span id="sendTelegramText">Botga tayyor video yuborish</span>
+        </button>
+
+        <div class="tg-status-row" id="tgStatusRow">
+          <span class="tg-dot" id="tgDot"></span>
+          <span id="tgStatusText">Telegram tekshirilmoqda...</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Payment Gate Modal (shown before 2nd+ image upload if no credits/premium) -->
+  <div class="pay-modal-backdrop" id="payModal">
+    <div class="pay-modal">
+      <div class="pay-modal-head">
+        <span class="pay-modal-title">💎 Davom etish uchun to‘lov</span>
+        <button class="pay-close-btn" id="closePayModalBtn" type="button">✕</button>
+      </div>
+      <p class="pay-modal-desc">
+        1-chi bepul rasmingizdan foydalandingiz. Keyingi rasmlarni yuklash va video tayyorlash uchun quyidagi tariflardan birini tanlang:
+      </p>
+
+      <div class="pay-plans">
+        <div class="pay-plan-card">
+          <div class="pay-plan-name">🎬 1 ta video tayyorlash</div>
+          <div class="pay-plan-price" id="payVideoPrice">—</div>
+        </div>
+        <div class="pay-plan-card pay-plan-premium">
+          <div class="pay-plan-name">👑 Premium (1 oy cheksiz)</div>
+          <div class="pay-plan-price" id="payPremiumPrice">—</div>
+        </div>
+      </div>
+
+      <div class="pay-card-box">
+        <div class="pay-card-row">
+          <span class="pay-card-label">💳 Karta raqami:</span>
+          <button class="copy-card-btn" id="copyCardBtn" type="button">Nusxalash</button>
+        </div>
+        <div class="pay-card-num" id="payCardNumber">—</div>
+        <div class="pay-card-holder">👤 <span id="payCardHolder">—</span></div>
+      </div>
+
+      <p class="pay-modal-hint">
+        To‘lov qilgach, chek rasmini <b>@quiz15_testbot</b> ga yuboring — admin tasdiqlashi bilan ruxsat ochiladi.
+      </p>
+
+      <div class="pay-modal-actions">
+        <a class="telegram-btn" href="https://t.me/quiz15_testbot?start=buy_video" target="_blank" rel="noopener">
+          🎬 1 marta rasm/video uchun chek yuborish
+        </a>
+        <a class="telegram-btn" style="background:linear-gradient(135deg,#d97706,#9333ea);border-color:rgba(251,191,36,0.45);" href="https://t.me/quiz15_testbot?start=buy_premium" target="_blank" rel="noopener">
+          👑 Premium (1 oy cheksiz) uchun chek yuborish
+        </a>
+        <button class="secondary-btn" id="refreshStatusBtn" type="button">🔄 To‘lovni tekshirish</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="default-image.js"></script>
+  <script src="app.js?v=10"></script>
+</body>
+</html>

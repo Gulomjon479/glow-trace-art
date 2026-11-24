@@ -421,30 +421,52 @@ app.post('/api/consume-upload', (req, res) => {
 
 function convertToMp4(inputPath, outputPath) {
   return new Promise((resolve) => {
+    // Instagram-ready 9:16 (1080x1920) H.264 + AAC MP4 with constant 30fps, yuv420p, and silent stereo audio track
+    const vf = 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=#08050f,setsar=1,fps=30,format=yuv420p';
     const args = [
-      '-y', '-i', inputPath,
+      '-y',
+      '-i', inputPath,
+      '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+      '-vf', vf,
+      '-r', '30',
       '-c:v', 'libx264',
       '-pix_fmt', 'yuv420p',
-      '-profile:v', 'high',
+      '-profile:v', 'main',
       '-level', '4.0',
       '-preset', 'veryfast',
-      '-crf', '21',
+      '-crf', '20',
+      '-g', '60',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-ar', '44100',
+      '-ac', '2',
+      '-shortest',
       '-movflags', '+faststart',
-      '-an',
       outputPath
     ];
-    const proc = spawn(ffmpegPath, args, { stdio: 'ignore' });
+    let stderrLog = '';
+    const proc = spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    if (proc.stderr) {
+      proc.stderr.on('data', (chunk) => {
+        if (stderrLog.length < 4000) stderrLog += String(chunk);
+      });
+    }
     const timer = setTimeout(() => {
       try { proc.kill('SIGKILL'); } catch (e) {}
       resolve(false);
-    }, 85000);
-    proc.on('error', () => {
+    }, 110000);
+    proc.on('error', (err) => {
       clearTimeout(timer);
+      console.error('FFmpeg spawn error:', err.message);
       resolve(false);
     });
     proc.on('close', (code) => {
       clearTimeout(timer);
-      resolve(code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1024);
+      const ok = code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1024;
+      if (!ok) {
+        console.error('FFmpeg conversion failed (code=' + code + '):', stderrLog.slice(-600));
+      }
+      resolve(ok);
     });
   });
 }
@@ -463,12 +485,17 @@ app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
     axios.post(`${TG_API}/sendChatAction`, { chat_id: chatId, action: 'upload_video' }, { timeout: 5000 }).catch(() => {});
 
     const converted = await convertToMp4(tmpIn, tmpOut);
-    const sendPath = converted ? tmpOut : tmpIn;
+    if (!converted) {
+      return res.status(500).json({ ok: false, error: 'Videoni MP4 formatga o‘tkazishda xatolik yuz berdi' });
+    }
+    const sendPath = tmpOut;
     const finalCaption = `✦ ${caption}\n\n@quiz15_testbot orqali tayyorlandi`.slice(0, 1020);
 
     const form = new FormData();
     form.append('chat_id', chatId);
     form.append('caption', finalCaption);
+    form.append('width', '1080');
+    form.append('height', '1920');
     form.append('supports_streaming', 'true');
     form.append('video', fs.createReadStream(sendPath), {
       filename: 'glow-trace-art.mp4',
@@ -480,7 +507,7 @@ app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
       httpsAgent: ipv4Agent,
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
-      timeout: 90000
+      timeout: 110000
     });
 
     if (!tgResp.data || !tgResp.data.ok) {
@@ -496,6 +523,38 @@ app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
         try { fs.unlinkSync(p); } catch (e) {}
       }
     }
+  }
+});
+
+app.post('/api/convert-mp4', upload.single('video'), async (req, res) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ ok: false, error: 'Video fayl topilmadi' });
+
+  const tmpIn = file.path;
+  const tmpOut = tmpIn + '.mp4';
+  try {
+    const converted = await convertToMp4(tmpIn, tmpOut);
+    if (!converted) {
+      return res.status(500).json({ ok: false, error: 'MP4 konvertatsiya xatosi' });
+    }
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', 'attachment; filename="glow-trace-art.mp4"');
+    const stream = fs.createReadStream(tmpOut);
+    stream.on('close', () => {
+      for (const p of [tmpIn, tmpOut]) {
+        if (p && fs.existsSync(p)) {
+          try { fs.unlinkSync(p); } catch (e) {}
+        }
+      }
+    });
+    stream.pipe(res);
+  } catch (err) {
+    for (const p of [tmpIn, tmpOut]) {
+      if (p && fs.existsSync(p)) {
+        try { fs.unlinkSync(p); } catch (e) {}
+      }
+    }
+    return res.status(500).json({ ok: false, error: err.message || 'Server xatosi' });
   }
 });
 

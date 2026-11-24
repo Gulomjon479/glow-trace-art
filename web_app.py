@@ -115,43 +115,66 @@ def send_to_telegram():
         tmp_out = tmp_in + ".mp4"
         send_path = tmp_in
 
+        vf = "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=#08050f,setsar=1,fps=30,format=yuv420p"
         cmd = [
             "ffmpeg",
             "-y",
             "-i",
             tmp_in,
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=channel_layout=stereo:sample_rate=44100",
+            "-vf",
+            vf,
+            "-r",
+            "30",
             "-c:v",
             "libx264",
             "-pix_fmt",
             "yuv420p",
             "-profile:v",
-            "high",
+            "main",
             "-level",
             "4.0",
             "-preset",
             "veryfast",
             "-crf",
-            "21",
+            "20",
+            "-g",
+            "60",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
+            "-shortest",
             "-movflags",
             "+faststart",
-            "-an",
             tmp_out,
         ]
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=110)
         if res.returncode == 0 and os.path.exists(tmp_out) and os.path.getsize(tmp_out) > 1024:
             send_path = tmp_out
+        else:
+            return jsonify({"ok": False, "error": "Videoni MP4 formatga o'tkazishda xatolik"}), 500
 
         final_caption = f"✦ {caption}\n\n@quiz15_testbot orqali tayyorlandi"
-        with open(send_path, "rb") as vf:
+        with open(send_path, "rb") as vf_file:
             tg_resp = requests.post(
                 f"{TG_API}/sendVideo",
                 data={
                     "chat_id": chat_id,
                     "caption": final_caption[:1020],
+                    "width": "1080",
+                    "height": "1920",
                     "supports_streaming": "true",
                 },
-                files={"video": ("glow-trace-art.mp4", vf, "video/mp4")},
-                timeout=90,
+                files={"video": ("glow-trace-art.mp4", vf_file, "video/mp4")},
+                timeout=110,
             )
 
         tg_json = tg_resp.json()

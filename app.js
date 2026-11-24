@@ -127,8 +127,8 @@
   const copyCardBtn = document.getElementById('copyCardBtn');
   const refreshStatusBtn = document.getElementById('refreshStatusBtn');
 
-  // Backend API base: same origin on AWS/HTTPS, or AWS tunnel when opened locally
-  const DEFAULT_API_BASE = 'https://loops-based-adipex-clone.trycloudflare.com';
+  // Backend API base: same origin on Render/HTTPS, or Render server when opened locally
+  const DEFAULT_API_BASE = 'https://glow-trace-art.onrender.com';
   const API_BASE = (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? DEFAULT_API_BASE
     : '';
@@ -3728,17 +3728,41 @@
     mr.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) state.recordedChunks.push(e.data);
     };
-    mr.onstop = () => {
+    mr.onstop = async () => {
       const blob = new Blob(state.recordedChunks, { type: mimeType || 'video/webm' });
       if (state.recordingTarget === 'telegram') {
         uploadVideoToTelegram(blob, mimeType);
       } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `glow-trace-art-${Date.now()}.webm`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
+        recordBtnText.textContent = 'MP4 tayyorlanmoqda...';
+        recordVideoBtn.disabled = true;
+        try {
+          const form = new FormData();
+          const ext = (mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+          form.append('video', blob, `glow-trace-art.${ext}`);
+          const resp = await fetch(`${API_BASE}/api/convert-mp4`, {
+            method: 'POST',
+            body: form,
+          });
+          if (!resp.ok) throw new Error('MP4 conversion failed');
+          const mp4Blob = await resp.blob();
+          const url = URL.createObjectURL(mp4Blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `glow-trace-art-${Date.now()}.mp4`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+        } catch (err) {
+          console.warn('Server MP4 convert fallback:', err);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `glow-trace-art-${Date.now()}.webm`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 3000);
+        } finally {
+          recordVideoBtn.disabled = false;
+          recordBtnText.textContent = 'Video (MP4)';
+        }
       }
     };
 
@@ -3768,7 +3792,7 @@
     }
     recordingBadge.classList.remove('visible');
     recordVideoBtn.classList.remove('recording');
-    recordBtnText.textContent = 'Video (WebM)';
+    recordBtnText.textContent = 'Video (MP4)';
     sendTelegramBtn.classList.remove('recording');
     if (state.recordingTarget !== 'telegram') {
       sendTelegramText.textContent = 'Botga tayyor video yuborish';

@@ -115,16 +115,18 @@ def send_to_telegram():
         tmp_out = tmp_in + ".mp4"
         send_path = tmp_in
 
-        vf = "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=#08050f,setsar=1,fps=30,format=yuv420p"
+        vf = "scale=720:900:force_original_aspect_ratio=decrease,pad=720:900:(ow-iw)/2:(oh-ih)/2:color=0x08050f,setsar=1,fps=30"
         cmd = [
             "ffmpeg",
             "-y",
+            "-threads",
+            "2",
             "-i",
             tmp_in,
             "-f",
             "lavfi",
             "-i",
-            "anullsrc=channel_layout=stereo:sample_rate=44100",
+            "anullsrc=r=44100:cl=stereo",
             "-vf",
             vf,
             "-r",
@@ -136,17 +138,17 @@ def send_to_telegram():
             "-profile:v",
             "main",
             "-level",
-            "4.0",
+            "3.1",
             "-preset",
-            "veryfast",
+            "ultrafast",
             "-crf",
-            "20",
+            "22",
             "-g",
             "60",
             "-c:a",
             "aac",
             "-b:a",
-            "128k",
+            "96k",
             "-ar",
             "44100",
             "-ac",
@@ -156,7 +158,7 @@ def send_to_telegram():
             "+faststart",
             tmp_out,
         ]
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=110)
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
         if res.returncode == 0 and os.path.exists(tmp_out) and os.path.getsize(tmp_out) > 1024:
             send_path = tmp_out
         else:
@@ -169,12 +171,12 @@ def send_to_telegram():
                 data={
                     "chat_id": chat_id,
                     "caption": final_caption[:1020],
-                    "width": "1080",
-                    "height": "1920",
+                    "width": "720",
+                    "height": "900",
                     "supports_streaming": "true",
                 },
                 files={"video": ("glow-trace-art.mp4", vf_file, "video/mp4")},
-                timeout=110,
+                timeout=90,
             )
 
         tg_json = tg_resp.json()

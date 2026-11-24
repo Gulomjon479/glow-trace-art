@@ -3713,18 +3713,20 @@
       updateTelegramStatusUI();
     }
 
-    const stream = canvas.captureStream(60);
+    const stream = canvas.captureStream(30);
     const mimeTypes = [
-      'video/webm;codecs=vp9',
-      'video/webm;codecs=vp8',
-      'video/webm',
+      'video/mp4;codecs=avc1',
       'video/mp4',
+      'video/webm;codecs=h264',
+      'video/webm;codecs=vp8',
+      'video/webm;codecs=vp9',
+      'video/webm',
     ];
     const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
 
     state.recordedChunks = [];
     state.recordingTarget = target;
-    const mr = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 6_500_000 } : undefined);
+    const mr = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 3_500_000 } : { videoBitsPerSecond: 3_500_000 });
     mr.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) state.recordedChunks.push(e.data);
     };

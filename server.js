@@ -378,7 +378,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, service: 'glow-trace-art', webappUrl: LIVE_WEBAPP_URL });
+  res.json({ ok: true, service: 'glow-trace-art', webappUrl: LIVE_WEBAPP_URL, ffmpegPath });
 });
 
 app.get('/api/user-status', (req, res) => {
@@ -419,56 +419,98 @@ app.post('/api/consume-upload', (req, res) => {
   });
 });
 
-function convertToMp4(inputPath, outputPath) {
+function runFfmpegArgs(args, outputPath, timeoutMs = 95000) {
   return new Promise((resolve) => {
-    // Instagram-ready 9:16 (1080x1920) H.264 + AAC MP4 with constant 30fps, yuv420p, and silent stereo audio track
-    const vf = 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=#08050f,setsar=1,fps=30,format=yuv420p';
-    const args = [
-      '-y',
-      '-i', inputPath,
-      '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
-      '-vf', vf,
-      '-r', '30',
-      '-c:v', 'libx264',
-      '-pix_fmt', 'yuv420p',
-      '-profile:v', 'main',
-      '-level', '4.0',
-      '-preset', 'veryfast',
-      '-crf', '20',
-      '-g', '60',
-      '-c:a', 'aac',
-      '-b:a', '128k',
-      '-ar', '44100',
-      '-ac', '2',
-      '-shortest',
-      '-movflags', '+faststart',
-      outputPath
-    ];
     let stderrLog = '';
-    const proc = spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    let proc;
+    try {
+      proc = spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    } catch (err) {
+      return resolve({ ok: false, error: err.message });
+    }
     if (proc.stderr) {
       proc.stderr.on('data', (chunk) => {
-        if (stderrLog.length < 4000) stderrLog += String(chunk);
+        if (stderrLog.length < 6000) stderrLog += String(chunk);
       });
     }
     const timer = setTimeout(() => {
       try { proc.kill('SIGKILL'); } catch (e) {}
-      resolve(false);
-    }, 110000);
+      resolve({ ok: false, error: 'FFmpeg timeout' });
+    }, timeoutMs);
     proc.on('error', (err) => {
       clearTimeout(timer);
-      console.error('FFmpeg spawn error:', err.message);
-      resolve(false);
+      resolve({ ok: false, error: err.message });
     });
     proc.on('close', (code) => {
       clearTimeout(timer);
       const ok = code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1024;
-      if (!ok) {
-        console.error('FFmpeg conversion failed (code=' + code + '):', stderrLog.slice(-600));
-      }
-      resolve(ok);
+      resolve({
+        ok,
+        error: ok ? '' : (stderrLog.trim().split('\n').slice(-4).join(' | ') || `Exit code ${code}`)
+      });
     });
   });
+}
+
+async function convertToMp4(inputPath, outputPath) {
+  // Fast, low-CPU/RAM Instagram-ready 4:5 (720x900) H.264 + silent AAC MP4 (30fps CFR, ultrafast)
+  // Using hex color 0x08050f (compatible with all FFmpeg versions) and 2 threads so bot polling never lags!
+  const vf = 'scale=720:900:force_original_aspect_ratio=decrease,pad=720:900:(ow-iw)/2:(oh-ih)/2:color=0x08050f,setsar=1,fps=30';
+  const primaryArgs = [
+    '-y',
+    '-threads', '2',
+    '-i', inputPath,
+    '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
+    '-vf', vf,
+    '-r', '30',
+    '-c:v', 'libx264',
+    '-pix_fmt', 'yuv420p',
+    '-profile:v', 'main',
+    '-level', '3.1',
+    '-preset', 'ultrafast',
+    '-crf', '22',
+    '-g', '60',
+    '-c:a', 'aac',
+    '-b:a', '96k',
+    '-ar', '44100',
+    '-ac', '2',
+    '-shortest',
+    '-movflags', '+faststart',
+    outputPath
+  ];
+
+  let res = await runFfmpegArgs(primaryArgs, outputPath, 85000);
+  if (res.ok) return { ok: true, width: 720, height: 900 };
+
+  console.warn('Primary FFmpeg failed, trying fallback without lavfi:', res.error);
+  // Fallback if lavfi is not compiled in: still force even dimensions, 30fps CFR, main profile, yuv420p
+  const fallbackArgs = [
+    '-y',
+    '-threads', '2',
+    '-i', inputPath,
+    '-vf', vf,
+    '-r', '30',
+    '-c:v', 'libx264',
+    '-pix_fmt', 'yuv420p',
+    '-profile:v', 'main',
+    '-level', '3.1',
+    '-preset', 'ultrafast',
+    '-crf', '22',
+    '-g', '60',
+    '-movflags', '+faststart',
+    '-an',
+    outputPath
+  ];
+  res = await runFfmpegArgs(fallbackArgs, outputPath, 85000);
+  return { ok: res.ok, width: 720, height: 900, error: res.error };
+}
+
+// Serialize video conversions so concurrent requests don't spike RAM/CPU and freeze the bot
+let conversionChain = Promise.resolve();
+function enqueueVideoTask(fn) {
+  const next = conversionChain.then(fn, fn);
+  conversionChain = next.catch(() => {});
+  return next;
 }
 
 app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
@@ -481,38 +523,49 @@ app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
 
   const tmpIn = file.path;
   const tmpOut = tmpIn + '.mp4';
+
+  // Respond immediately if client wants fast non-blocking processing or process inside queue
   try {
-    axios.post(`${TG_API}/sendChatAction`, { chat_id: chatId, action: 'upload_video' }, { timeout: 5000 }).catch(() => {});
+    await enqueueVideoTask(async () => {
+      const actionTimer = setInterval(() => {
+        axios.post(`${TG_API}/sendChatAction`, { chat_id: chatId, action: 'upload_video' }, { httpsAgent: ipv4Agent, timeout: 4000 }).catch(() => {});
+      }, 4500);
+      axios.post(`${TG_API}/sendChatAction`, { chat_id: chatId, action: 'upload_video' }, { httpsAgent: ipv4Agent, timeout: 4000 }).catch(() => {});
 
-    const converted = await convertToMp4(tmpIn, tmpOut);
-    if (!converted) {
-      return res.status(500).json({ ok: false, error: 'Videoni MP4 formatga o‘tkazishda xatolik yuz berdi' });
-    }
-    const sendPath = tmpOut;
-    const finalCaption = `✦ ${caption}\n\n@quiz15_testbot orqali tayyorlandi`.slice(0, 1020);
+      try {
+        const conv = await convertToMp4(tmpIn, tmpOut);
+        if (!conv.ok) {
+          throw new Error(`MP4 konvertatsiya xatosi: ${conv.error || 'noma’lum'}`);
+        }
+        const finalCaption = `✦ ${caption}\n\n@quiz15_testbot orqali tayyorlandi`.slice(0, 1020);
 
-    const form = new FormData();
-    form.append('chat_id', chatId);
-    form.append('caption', finalCaption);
-    form.append('width', '1080');
-    form.append('height', '1920');
-    form.append('supports_streaming', 'true');
-    form.append('video', fs.createReadStream(sendPath), {
-      filename: 'glow-trace-art.mp4',
-      contentType: 'video/mp4'
+        const form = new FormData();
+        form.append('chat_id', chatId);
+        form.append('caption', finalCaption);
+        form.append('width', String(conv.width || 720));
+        form.append('height', String(conv.height || 900));
+        form.append('supports_streaming', 'true');
+        form.append('video', fs.createReadStream(tmpOut), {
+          filename: 'glow-trace-art.mp4',
+          contentType: 'video/mp4'
+        });
+
+        const tgResp = await axios.post(`${TG_API}/sendVideo`, form, {
+          headers: form.getHeaders(),
+          httpsAgent: ipv4Agent,
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+          timeout: 90000
+        });
+
+        if (!tgResp.data || !tgResp.data.ok) {
+          throw new Error(tgResp.data?.description || 'Telegram API xatosi');
+        }
+      } finally {
+        clearInterval(actionTimer);
+      }
     });
 
-    const tgResp = await axios.post(`${TG_API}/sendVideo`, form, {
-      headers: form.getHeaders(),
-      httpsAgent: ipv4Agent,
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity,
-      timeout: 110000
-    });
-
-    if (!tgResp.data || !tgResp.data.ok) {
-      return res.status(502).json({ ok: false, error: 'Telegram API xatosi' });
-    }
     return res.json({ ok: true });
   } catch (err) {
     const desc = err.response?.data?.description || err.message || 'Server xatosi';
@@ -533,9 +586,12 @@ app.post('/api/convert-mp4', upload.single('video'), async (req, res) => {
   const tmpIn = file.path;
   const tmpOut = tmpIn + '.mp4';
   try {
-    const converted = await convertToMp4(tmpIn, tmpOut);
-    if (!converted) {
-      return res.status(500).json({ ok: false, error: 'MP4 konvertatsiya xatosi' });
+    const conv = await enqueueVideoTask(() => convertToMp4(tmpIn, tmpOut));
+    if (!conv.ok) {
+      for (const p of [tmpIn, tmpOut]) {
+        if (p && fs.existsSync(p)) { try { fs.unlinkSync(p); } catch (e) {} }
+      }
+      return res.status(500).json({ ok: false, error: conv.error || 'MP4 konvertatsiya xatosi' });
     }
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Content-Disposition', 'attachment; filename="glow-trace-art.mp4"');
@@ -1084,7 +1140,7 @@ async function startPollingLoop() {
       if (resp && resp.ok && Array.isArray(resp.result)) {
         for (const upd of resp.result) {
           offset = upd.update_id + 1;
-          await handleUpdate(upd);
+          handleUpdate(upd).catch((err) => console.error('handleUpdate error:', err.message));
         }
       } else {
         if (resp && resp.error_code === 409) {

@@ -117,6 +117,7 @@
 
   const planBanner = document.getElementById('planBanner');
   const planBannerText = document.getElementById('planBannerText');
+  const usersCountVal = document.getElementById('usersCountVal');
   const openPaywallBtn = document.getElementById('openPaywallBtn');
   const payModal = document.getElementById('payModal');
   const closePayModalBtn = document.getElementById('closePayModalBtn');
@@ -3506,6 +3507,9 @@
 
   function updatePlanBannerUI() {
     const st = state.userStatus;
+    if (st && typeof st.total_users === 'number' && usersCountVal) {
+      usersCountVal.textContent = st.total_users.toLocaleString('ru-RU');
+    }
     if (!st || !planBanner) return;
     planBanner.classList.remove('locked');
     if (st.is_admin) {

@@ -82,6 +82,7 @@ def setup_bot_menu(webapp_url):
 def send_start(chat_id, first_name="", username=""):
     store.ensure_user(chat_id, first_name, username)
     status = store.get_user_status(chat_id)
+    st = store.get_stats()
     base_url = get_live_webapp_url()
     personal_url = f"{base_url}/?chat_id={chat_id}"
     greeting = f"Salom, {first_name}! " if first_name else "Salom! "
@@ -100,6 +101,8 @@ def send_start(chat_id, first_name="", username=""):
         )
 
     text = (
+        f"👥 <b>Bot foydalanuvchilari: {st['total_users']} ta</b> | 🎬 <b>Videolar: {st['total_videos']} ta</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
         f"✦ <b>{greeting}Glow Trace Art PRO</b> botiga xush kelibsiz!\n\n"
         f"{plan_line}\n\n"
         "🎬 <b>Qanday ishlaydi:</b>\n"

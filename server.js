@@ -383,6 +383,7 @@ app.get('/health', (req, res) => {
 
 app.get('/api/user-status', (req, res) => {
   const chatId = String(req.query.chat_id || '').trim();
+  const st = store.getStats();
   if (!chatId) {
     return res.json({
       ok: true,
@@ -391,10 +392,14 @@ app.get('/api/user-status', (req, res) => {
       free_remaining: 1,
       credits: 0,
       is_premium: false,
+      total_users: st.total_users,
+      total_videos: st.total_videos,
       settings: store.getSettings()
     });
   }
   const status = store.getUserStatus(chatId);
+  status.total_users = st.total_users;
+  status.total_videos = st.total_videos;
   status.ok = true;
   res.json(status);
 });
@@ -411,6 +416,9 @@ app.post('/api/consume-upload', (req, res) => {
   }
   const result = store.consumeUploadAccess(chatId);
   const status = store.getUserStatus(chatId);
+  const st = store.getStats();
+  status.total_users = st.total_users;
+  status.total_videos = st.total_videos;
   res.json({
     ok: true,
     allowed: result.allowed,
@@ -661,11 +669,30 @@ function tgCall(method, payload = {}, timeout = 25000) {
   });
 }
 
+let lastSyncedUserCount = -1;
+
+async function syncBotUserCountHeader(force = false) {
+  try {
+    const st = store.getStats();
+    if (!force && st.total_users === lastSyncedUserCount) return;
+    lastSyncedUserCount = st.total_users;
+    const shortDesc = `👥 Foydalanuvchilar: ${st.total_users} ta | 🎬 Yasalgan videolar: ${st.total_videos} ta\n✦ Glow Trace Art PRO — Yorqin 3D & Neon Kontur Animatsiya`;
+    const fullDesc =
+      `👥 Jami foydalanuvchilar: ${st.total_users} ta\n` +
+      `🎬 Tayyorlangan videolar: ${st.total_videos} ta\n\n` +
+      `✦ Glow Trace Art PRO — rasmingizdan 12 xil yorqin 3D gologramma, Matrix 0/1, raketa va neon kontur video-animatsiyalar tayyorlab beruvchi bot!\n` +
+      `🎁 1-chi rasm va animatsiya BEPUL!`;
+    await tgCall('setMyShortDescription', { short_description: shortDesc.slice(0, 120) }, 10000);
+    await tgCall('setMyDescription', { description: fullDesc.slice(0, 512) }, 10000);
+  } catch (e) {}
+}
+
 async function setupBotMenu(webappUrl) {
   if (!webappUrl || !webappUrl.startsWith('https://')) return;
+  const st = store.getStats();
   await tgCall('setMyCommands', {
     commands: [
-      { command: 'start', description: '✦ Glow Trace Art ilovasini ochish' },
+      { command: 'start', description: `✦ Ilovani ochish (👥 ${st.total_users} ta foydalanuvchi)` },
       { command: 'tarif', description: '💎 Tariflar va to‘lov' },
       { command: 'browser', description: '🌐 Brauzerda ochish havolasi' },
       { command: 'admin', description: '⚙️ Admin panel (faqat admin)' },
@@ -675,15 +702,18 @@ async function setupBotMenu(webappUrl) {
   await tgCall('setChatMenuButton', {
     menu_button: {
       type: 'web_app',
-      text: '✦ Glow Art',
+      text: `✦ Glow Art (${st.total_users})`,
       web_app: { url: webappUrl }
     }
   }, 10000);
+  await syncBotUserCountHeader(false);
 }
 
 async function sendStart(chatId, firstName = '', username = '') {
   store.ensureUser(chatId, firstName, username);
+  syncBotUserCountHeader(false).catch(() => {});
   const status = store.getUserStatus(chatId);
+  const st = store.getStats();
   const personalUrl = `${LIVE_WEBAPP_URL}/?chat_id=${chatId}`;
   const greeting = firstName ? `Salom, ${firstName}! ` : 'Salom! ';
 
@@ -700,6 +730,8 @@ async function sendStart(chatId, firstName = '', username = '') {
   }
 
   const text =
+    `👥 <b>Bot foydalanuvchilari: ${st.total_users} ta</b> | 🎬 <b>Videolar: ${st.total_videos} ta</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
     `✦ <b>${greeting}Glow Trace Art PRO</b> botiga xush kelibsiz!\n\n` +
     `${planLine}\n\n` +
     `🎬 <b>Qanday ishlaydi:</b>\n` +
@@ -708,6 +740,7 @@ async function sendStart(chatId, firstName = '', username = '') {
     `3. <b>«Botga tayyor video yuborish»</b> tugmasini bosing — tayyor <b>MP4 video</b> avtomatik shu botga keladi!`;
 
   const inlineKb = [
+    [{ text: `👥 Foydalanuvchilar soni: ${st.total_users} ta`, callback_data: 'show_users_count' }],
     [{ text: '✦ Glow Trace Art ochish (Telegram)', web_app: { url: personalUrl } }],
     [{ text: '🌐 Brauzerda ochish (Chrome / Safari)', url: personalUrl }],
     [
@@ -721,6 +754,7 @@ async function sendStart(chatId, firstName = '', username = '') {
 
   const replyRows = [
     [{ text: '✦ Glow Trace Art ochish', web_app: { url: personalUrl } }],
+    [{ text: `👥 Foydalanuvchilar: ${st.total_users} ta` }],
     [{ text: '🌐 Brauzerda ochish' }, { text: '💎 Tariflar / To‘lov' }],
     [{ text: '📖 Qo‘llanma' }]
   ];
@@ -1017,6 +1051,13 @@ async function handleUpdate(upd) {
     if (data === 'cancel_state') {
       USER_STATES.delete(cid);
       await tgCall('sendMessage', { chat_id: cid, text: '❌ Bekor qilindi.' });
+    } else if (data === 'show_users_count') {
+      const st = store.getStats();
+      await tgCall('sendMessage', {
+        chat_id: cid,
+        text: `📊 <b>Bot statistikasi:</b>\n\n👥 <b>Jami foydalanuvchilar:</b> ${st.total_users} ta\n🎬 <b>Tayyorlangan videolar:</b> ${st.total_videos} ta`,
+        parse_mode: 'HTML'
+      });
     } else if (data === 'help') {
       await sendHelp(cid);
     } else if (data === 'tarifs') {
@@ -1116,6 +1157,14 @@ async function handleUpdate(upd) {
   }
   if (text.startsWith('/help') || text.includes('Qo‘llanma')) {
     return sendHelp(chatId);
+  }
+  if (text.startsWith('/stats') || text.includes('Foydalanuvchilar:')) {
+    const st = store.getStats();
+    return tgCall('sendMessage', {
+      chat_id: chatId,
+      text: `📊 <b>Bot statistikasi:</b>\n\n👥 <b>Jami foydalanuvchilar:</b> ${st.total_users} ta\n🎬 <b>Tayyorlangan videolar:</b> ${st.total_videos} ta`,
+      parse_mode: 'HTML'
+    });
   }
 
   if (text && (await handleAdminInput(chatId, text))) return;

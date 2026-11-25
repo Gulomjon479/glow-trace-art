@@ -202,10 +202,11 @@
     recordedChunks: [],
   };
 
-  // Setup crisp HiDPI canvas
-  const DPR = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = LOGICAL_W * DPR;
-  canvas.height = LOGICAL_H * DPR;
+  // Setup crisp HiDPI canvas (cap DPR on touch/mobile so 60fps stays silky and never lags)
+  const isMobileDevice = window.innerWidth <= 860 || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  const DPR = isMobileDevice ? Math.min(window.devicePixelRatio || 1, 1.25) : Math.min(window.devicePixelRatio || 1, 1.75);
+  canvas.width = Math.round(LOGICAL_W * DPR);
+  canvas.height = Math.round(LOGICAL_H * DPR);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   // ===== Math & Easing =====
@@ -351,10 +352,10 @@
     const drawY = padTop + (availH - drawH) / 2;
     state.artBounds = { x: drawX, y: drawY, w: drawW, h: drawH };
 
-    // 2. High-detail processing resolution (up to 720px for razor-sharp facial/wing details)
-    const maxProc = 720;
+    // 2. High-detail processing resolution (fast 520px desktop / 440px mobile for instant non-freezing analysis)
+    const maxProc = isMobileDevice ? 440 : 520;
     const procScale = Math.min(1, maxProc / Math.max(img.width, img.height));
-    const pw = Math.max(80, Math.round(Math.min(maxProc, Math.max(drawW * 1.15, img.width * procScale))));
+    const pw = Math.max(80, Math.round(Math.min(maxProc, Math.max(drawW * 0.9, img.width * procScale))));
     const ph = Math.max(80, Math.round(pw / imgAspect));
 
     const off = document.createElement('canvas');
@@ -1167,14 +1168,32 @@
     state.fillTintCanvas = fc;
     state.fillPhotoCanvas = pc;
 
-    // 3. Build 16,000+ full-color organic particles for Particle Bloom Grow mode (codeb1oom style)
-    buildBloomParticles();
-    // 4. Build X-Ray Negative + Vibrant Neon Cel-Shaded Positive layers (velnox.py style)
-    buildVelnoxLayers();
-    // 5. Build True 3D Volumetric Point Cloud (front relief + 3D back/side shell)
-    build3DPointCloud();
-    // 6. Build Crisp 0/1 Binary Matrix Grid (Programmer Binary Rain Art)
-    buildBinaryGrid();
+    // Invalidate heavy mode-specific caches and build ONLY the active mode's data lazily!
+    state.bloomData = null;
+    state.bloomSharpCanvas = null;
+    state.velnoxNegCanvas = null;
+    state.velnoxPosCanvas = null;
+    state.cloud3D = null;
+    state.binaryGrid = null;
+    ensureActiveStyleLayers();
+  }
+
+  function ensureActiveStyleLayers() {
+    if (!state._rawMask) return;
+    const style = state.animStyle;
+    if (style === 'binary') {
+      if (!state.binaryGrid) buildBinaryGrid();
+    } else if (style === 'holo3d') {
+      if (!state.bloomData) buildBloomParticles();
+      if (!state.cloud3D) build3DPointCloud();
+    } else if (style === 'topdown') {
+      if (!state.bloomData) buildBloomParticles();
+      if (!state.velnoxNegCanvas || !state.velnoxPosCanvas) buildVelnoxLayers();
+    } else if (style === 'velnox') {
+      if (!state.velnoxNegCanvas || !state.velnoxPosCanvas) buildVelnoxLayers();
+    } else if (style === 'bloom') {
+      if (!state.bloomData || !state.bloomSharpCanvas) buildBloomParticles();
+    }
   }
 
   function buildBinaryGrid() {
@@ -1268,8 +1287,9 @@
     const depthSmooth = gaussianBlur5x5(d1, pw, ph);
 
     const bd = state.bloomData;
-    const baseCount = Math.min(10500, bd.count);
-    const backCount = Math.floor(baseCount * 0.35);
+    const max3DBase = isMobileDevice ? 6200 : 8800;
+    const baseCount = Math.min(max3DBase, bd.count);
+    const backCount = Math.floor(baseCount * 0.32);
     const total = baseCount + backCount;
     const rng = createRng(3030);
 
@@ -1567,8 +1587,8 @@
     state.bloomRevealCanvas.width = pw;
     state.bloomRevealCanvas.height = ph;
 
-    // Sample up to 16,500 organic color-true dust particles + micro-hair streaks
-    const maxParticles = 16500;
+    // Sample up to 11,000 (7,500 on mobile) organic color-true dust particles + micro-hair streaks for 60fps smoothness
+    const maxParticles = isMobileDevice ? 7500 : 11000;
     const count = Math.min(maxParticles, candidates.length);
     if (count === 0) {
       state.bloomData = null;
@@ -2079,15 +2099,17 @@
       ctx.stroke();
     }
 
-    // Composite cinema optical bloom onto stage
-    if (doBloom) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.filter = `blur(${(4.5 + glowMul * 2.5).toFixed(1)}px)`;
-      ctx.globalAlpha = clamp(0.56 * glowMul, 0, 1);
-      ctx.drawImage(bloomCanvas, 0, 0, LOGICAL_W, LOGICAL_H);
-      ctx.restore();
-    }
+      // Fast composite cinema optical bloom onto stage (hardware bilinear upscale without slow CSS blur filter!)
+      if (doBloom) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.imageSmoothingEnabled = true;
+        ctx.globalAlpha = clamp(0.46 * glowMul, 0, 0.92);
+        ctx.drawImage(bloomCanvas, 0, 0, LOGICAL_W, LOGICAL_H);
+        ctx.globalAlpha = clamp(0.24 * glowMul, 0, 0.65);
+        ctx.drawImage(bloomCanvas, -2, -2, LOGICAL_W + 4, LOGICAL_H + 4);
+        ctx.restore();
+      }
 
     // 5.5 Radiant Completion Shockwave Ring Visual
     if (shockRadius > 0) {
@@ -2326,13 +2348,14 @@
         }
 
         if (inRainHead) {
-          // Blazing pure white-mint Matrix raindrop head!
-          const headA = clamp(0.95 * masterAlpha, 0, 1);
-          c.shadowColor = useMatrixGreen ? 'rgba(90, 255, 165, 0.9)' : 'rgba(170, 225, 255, 0.9)';
-          c.shadowBlur = 9 * glowMul;
-          c.fillStyle = `rgba(242, 255, 248, ${headA.toFixed(3)})`;
+          // Blazing pure white-mint Matrix raindrop head (no per-character shadowBlur so 60fps never lags!)
+          const headA = clamp(0.96 * masterAlpha, 0, 1);
+          c.fillStyle = useMatrixGreen
+            ? `rgba(110, 255, 175, ${(headA * 0.38).toFixed(3)})`
+            : `rgba(145, 220, 255, ${(headA * 0.38).toFixed(3)})`;
+          c.fillRect(x - cellW * 0.45, y - cellH * 0.45, cellW * 0.9, cellH * 0.9);
+          c.fillStyle = `rgba(245, 255, 250, ${headA.toFixed(3)})`;
           c.fillText(ch, x, y);
-          c.shadowBlur = 0;
           continue;
         }
 
@@ -2613,9 +2636,8 @@
       c.drawImage(state.velnoxNegCanvas, drawX, drawY, drawW, drawH);
       if (state.useBloom && state.glowIntensity > 0.2) {
         c.globalCompositeOperation = 'lighter';
-        c.filter = `blur(${(3.2 + state.glowIntensity * 2.0).toFixed(1)}px)`;
-        c.globalAlpha = 0.38 * state.glowIntensity * masterAlpha;
-        c.drawImage(state.velnoxNegCanvas, drawX, drawY, drawW, drawH);
+        c.globalAlpha = 0.28 * state.glowIntensity * masterAlpha;
+        c.drawImage(state.velnoxNegCanvas, drawX - 1.5, drawY - 1.5, drawW + 3, drawH + 3);
       }
       c.restore();
     }
@@ -2630,9 +2652,8 @@
       c.drawImage(state.velnoxPosCanvas, drawX, drawY, drawW, drawH);
       if (state.useBloom && state.glowIntensity > 0.2) {
         c.globalCompositeOperation = 'lighter';
-        c.filter = `blur(${(3.8 + state.glowIntensity * 2.2).toFixed(1)}px)`;
-        c.globalAlpha = 0.35 * state.glowIntensity * masterAlpha;
-        c.drawImage(state.velnoxPosCanvas, drawX, drawY, drawW, drawH);
+        c.globalAlpha = 0.26 * state.glowIntensity * masterAlpha;
+        c.drawImage(state.velnoxPosCanvas, drawX - 1.5, drawY - 1.5, drawW + 3, drawH + 3);
       }
       c.restore();
     }
@@ -2796,12 +2817,11 @@
       c.globalAlpha = masterAlpha;
       c.drawImage(state.velnoxNegCanvas, drawX, drawY, drawW, drawH);
 
-      // Soft icy glow pass over X-Ray negative
+      // Soft icy glow pass over X-Ray negative (no slow CSS filter)
       if (state.useBloom && state.glowIntensity > 0.2) {
         c.globalCompositeOperation = 'lighter';
-        c.filter = `blur(${(3.5 + state.glowIntensity * 2.2).toFixed(1)}px)`;
-        c.globalAlpha = 0.42 * state.glowIntensity * masterAlpha;
-        c.drawImage(state.velnoxNegCanvas, drawX, drawY, drawW, drawH);
+        c.globalAlpha = 0.30 * state.glowIntensity * masterAlpha;
+        c.drawImage(state.velnoxNegCanvas, drawX - 1.5, drawY - 1.5, drawW + 3, drawH + 3);
       }
       c.restore();
     }
@@ -2816,12 +2836,11 @@
       c.globalAlpha = masterAlpha;
       c.drawImage(state.velnoxPosCanvas, drawX, drawY, drawW, drawH);
 
-      // Subtle cinema neon bloom over positive artwork
+      // Subtle cinema neon bloom over positive artwork (no slow CSS filter)
       if (state.useBloom && state.glowIntensity > 0.2) {
         c.globalCompositeOperation = 'lighter';
-        c.filter = `blur(${(4.0 + state.glowIntensity * 2.4).toFixed(1)}px)`;
-        c.globalAlpha = 0.36 * state.glowIntensity * masterAlpha;
-        c.drawImage(state.velnoxPosCanvas, drawX, drawY, drawW, drawH);
+        c.globalAlpha = 0.28 * state.glowIntensity * masterAlpha;
+        c.drawImage(state.velnoxPosCanvas, drawX - 1.5, drawY - 1.5, drawW + 3, drawH + 3);
       }
       c.restore();
     }
@@ -3406,7 +3425,9 @@
     state.lastFrameMs = nowMs;
 
     if (state.playing && !state.comparing) {
-      state.time += dt * state.speed;
+      // Export recording runs at 1.6x internal timeline speed so users get a crisp ~15s video quickly without waiting 24s!
+      const effectiveSpeed = state.recording ? Math.max(state.speed, 1.55) : state.speed;
+      state.time += dt * effectiveSpeed;
       if (state.time >= TIMELINE.DURATION) {
         if (state.recording) stopRecording();
         if (state.loop) {
@@ -3417,10 +3438,13 @@
           updatePlayButtonUI();
         }
       }
-      timelineSlider.value = state.time.toFixed(2);
+      if (!state._lastSliderSync || nowMs - state._lastSliderSync > 90) {
+        timelineSlider.value = state.time.toFixed(2);
+        updateTimelineLabels(state.time);
+        state._lastSliderSync = nowMs;
+      }
     }
 
-    updateTimelineLabels(state.time);
     renderFrame(state.time);
     requestAnimationFrame(tick);
   }
@@ -3730,7 +3754,7 @@
 
     state.recordedChunks = [];
     state.recordingTarget = target;
-    const mr = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 3_500_000 } : { videoBitsPerSecond: 3_500_000 });
+    const mr = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 2_200_000 } : { videoBitsPerSecond: 2_200_000 });
     mr.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) state.recordedChunks.push(e.data);
     };
@@ -3931,6 +3955,7 @@
     state.animStyle = chip.dataset.anim;
     state.orbit3D.userYaw = 0;
     state.orbit3D.userPitch = 0;
+    ensureActiveStyleLayers();
     applyAnimationStyle();
     state.time = 0;
     state.playing = true;

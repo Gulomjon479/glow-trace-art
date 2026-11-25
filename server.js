@@ -31,7 +31,7 @@ let LIVE_WEBAPP_URL = (
   process.env.RENDER_EXTERNAL_URL ||
   process.env.GLOW_WEBAPP_URL ||
   process.env.MINI_APP_URL ||
-  'https://loops-based-adipex-clone.trycloudflare.com'
+  'https://glow-trace-art.onrender.com'
 ).replace(/\/+$/, '');
 
 // ==================== DATA STORE ====================
@@ -40,26 +40,25 @@ const DEFAULT_DATA = {
   settings: {
     card_number: '5614 6824 1425 9384',
     card_holder: 'FAXRIDDINOVA NODIRA',
-    video_price: 10000,
-    premium_price: 49000
+    video_price: 3000,
+    premium_price: 25000
   },
   users: {},
   payments: {}
 };
 
-const DATABASE_URL =
+const RAW_DATABASE_URL =
   process.env.DATABASE_URL ||
-  Buffer.from(
-    'cG9zdGdyZXNxbDovL25lb25kYl9vd25lcjpu' +
-    'cGdfd0lrMHlHRmlTSDRlQGVwLXN3ZWV0LXJh' +
-    'aW4tYmUyOXoyOXItcG9vbGVyLmMtOS51cy1l' +
-    'YXN0LTIuYXdzLm5lb24udGVjaC9uZW9uZGI/' +
-    'c3NsbW9kZT1yZXF1aXJl',
-    'base64'
-  ).toString('utf8');
+  'postgresql://neondb_owner:npg_wIk0yGFiSH4e@ep-sweet-rain-be29z29r-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+
+// Strip channel_binding=require if node-postgres does not support SCRAM channel binding over pooler, while keeping sslmode=require
+const DATABASE_URL = RAW_DATABASE_URL.replace(/[?&]channel_binding=[^&]+/g, '');
 
 let pgPool = null;
 let memCache = null;
+let saveTimer = null;
+let pgSaving = false;
+let pgDirty = false;
 
 function normalizeData(data) {
   if (!data || typeof data !== 'object') data = {};
@@ -79,7 +78,7 @@ function normalizeData(data) {
 }
 
 function loadData() {
-  if (memCache) return normalizeData(memCache);
+  if (memCache) return memCache;
   let data = {};
   if (fs.existsSync(DATA_FILE)) {
     try {
@@ -92,24 +91,41 @@ function loadData() {
   return memCache;
 }
 
+async function flushPgStore() {
+  if (!pgPool || pgSaving || !pgDirty || !memCache) return;
+  pgSaving = true;
+  pgDirty = false;
+  const payload = JSON.stringify(memCache);
+  try {
+    await pgPool.query(
+      `INSERT INTO glow_trace_art_store (id, data, updated_at)
+       VALUES (1, $1::jsonb, NOW())
+       ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+      [payload]
+    );
+  } catch (err) {
+    console.error('Neon PostgreSQL save error:', err.message);
+  } finally {
+    pgSaving = false;
+    if (pgDirty) setTimeout(flushPgStore, 250);
+  }
+}
+
 function saveData(data) {
   memCache = normalizeData(data);
-  try {
-    const tmp = DATA_FILE + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(memCache, null, 2), 'utf8');
-    fs.renameSync(tmp, DATA_FILE);
-  } catch (e) {
-    console.error('saveData error:', e.message);
-  }
-  if (pgPool) {
-    pgPool
-      .query(
-        `INSERT INTO glow_trace_art_store (id, data, updated_at)
-         VALUES (1, $1::jsonb, NOW())
-         ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
-        [JSON.stringify(memCache)]
-      )
-      .catch((err) => console.error('Neon PostgreSQL save error:', err.message));
+  pgDirty = true;
+
+  if (!saveTimer) {
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      const jsonStr = JSON.stringify(memCache, null, 2);
+      const tmp = DATA_FILE + '.tmp';
+      fs.promises
+        .writeFile(tmp, jsonStr, 'utf8')
+        .then(() => fs.promises.rename(tmp, DATA_FILE))
+        .catch(() => {});
+      flushPgStore();
+    }, 150);
   }
 }
 
@@ -119,9 +135,13 @@ async function initPostgresStore() {
     pgPool = new Pool({
       connectionString: DATABASE_URL,
       ssl: { rejectUnauthorized: false },
-      max: 5,
+      max: 6,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000
+      connectionTimeoutMillis: 10000,
+      keepAlive: true
+    });
+    pgPool.on('error', (err) => {
+      console.error('Neon PG idle client error:', err.message);
     });
     await pgPool.query(`
       CREATE TABLE IF NOT EXISTS glow_trace_art_store (
@@ -140,9 +160,7 @@ async function initPostgresStore() {
         users: { ...localData.users, ...remoteData.users },
         payments: { ...localData.payments, ...remoteData.payments }
       });
-      try {
-        fs.writeFileSync(DATA_FILE, JSON.stringify(memCache, null, 2), 'utf8');
-      } catch (e) {}
+      fs.promises.writeFile(DATA_FILE, JSON.stringify(memCache, null, 2), 'utf8').catch(() => {});
       console.log('✅ Neon PostgreSQL store loaded & synced for Glow Trace Art!');
     } else {
       const initial = loadData();
@@ -462,11 +480,11 @@ function runFfmpegArgs(args, outputPath, timeoutMs = 95000) {
 
 async function convertToMp4(inputPath, outputPath) {
   // Fast, low-CPU/RAM Instagram-ready 4:5 (720x900) H.264 + silent AAC MP4 (30fps CFR, ultrafast)
-  // Using hex color 0x08050f (compatible with all FFmpeg versions) and 2 threads so bot polling never lags!
+  // Using 1 thread + ultrafast + crf 24 so Node event loop and bot polling NEVER freeze!
   const vf = 'scale=720:900:force_original_aspect_ratio=decrease,pad=720:900:(ow-iw)/2:(oh-ih)/2:color=0x08050f,setsar=1,fps=30';
   const primaryArgs = [
     '-y',
-    '-threads', '2',
+    '-threads', '1',
     '-i', inputPath,
     '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
     '-vf', vf,
@@ -476,10 +494,11 @@ async function convertToMp4(inputPath, outputPath) {
     '-profile:v', 'main',
     '-level', '3.1',
     '-preset', 'ultrafast',
-    '-crf', '22',
+    '-tune', 'fastdecode',
+    '-crf', '24',
     '-g', '60',
     '-c:a', 'aac',
-    '-b:a', '96k',
+    '-b:a', '64k',
     '-ar', '44100',
     '-ac', '2',
     '-shortest',
@@ -487,14 +506,13 @@ async function convertToMp4(inputPath, outputPath) {
     outputPath
   ];
 
-  let res = await runFfmpegArgs(primaryArgs, outputPath, 85000);
+  let res = await runFfmpegArgs(primaryArgs, outputPath, 75000);
   if (res.ok) return { ok: true, width: 720, height: 900 };
 
   console.warn('Primary FFmpeg failed, trying fallback without lavfi:', res.error);
-  // Fallback if lavfi is not compiled in: still force even dimensions, 30fps CFR, main profile, yuv420p
   const fallbackArgs = [
     '-y',
-    '-threads', '2',
+    '-threads', '1',
     '-i', inputPath,
     '-vf', vf,
     '-r', '30',
@@ -503,13 +521,14 @@ async function convertToMp4(inputPath, outputPath) {
     '-profile:v', 'main',
     '-level', '3.1',
     '-preset', 'ultrafast',
-    '-crf', '22',
+    '-tune', 'fastdecode',
+    '-crf', '24',
     '-g', '60',
     '-movflags', '+faststart',
     '-an',
     outputPath
   ];
-  res = await runFfmpegArgs(fallbackArgs, outputPath, 85000);
+  res = await runFfmpegArgs(fallbackArgs, outputPath, 75000);
   return { ok: res.ok, width: 720, height: 900, error: res.error };
 }
 
@@ -531,8 +550,11 @@ app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
 
   const tmpIn = file.path;
   const tmpOut = tmpIn + '.mp4';
+  const origName = String(file.originalname || '').toLowerCase();
+  const mime = String(file.mimetype || '').toLowerCase();
+  const isAlreadyMp4 = origName.endsWith('.mp4') || mime.includes('mp4');
 
-  // Respond immediately if client wants fast non-blocking processing or process inside queue
+  // Acknowledge upload immediately if async mode requested, or process quickly and return
   try {
     await enqueueVideoTask(async () => {
       const actionTimer = setInterval(() => {
@@ -541,7 +563,23 @@ app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
       axios.post(`${TG_API}/sendChatAction`, { chat_id: chatId, action: 'upload_video' }, { httpsAgent: ipv4Agent, timeout: 4000 }).catch(() => {});
 
       try {
-        const conv = await convertToMp4(tmpIn, tmpOut);
+        let sendFilePath = tmpOut;
+        let conv = { ok: false, width: 720, height: 900 };
+
+        if (isAlreadyMp4 && fs.existsSync(tmpIn) && fs.statSync(tmpIn).size > 2048) {
+          // Fast remux with +faststart first (takes <0.3s instead of full re-encode!)
+          const fastRemux = await runFfmpegArgs([
+            '-y', '-i', tmpIn, '-c', 'copy', '-movflags', '+faststart', tmpOut
+          ], tmpOut, 15000);
+          if (fastRemux.ok) {
+            conv = { ok: true, width: 720, height: 900 };
+          } else {
+            conv = await convertToMp4(tmpIn, tmpOut);
+          }
+        } else {
+          conv = await convertToMp4(tmpIn, tmpOut);
+        }
+
         if (!conv.ok) {
           throw new Error(`MP4 konvertatsiya xatosi: ${conv.error || 'noma’lum'}`);
         }
@@ -553,7 +591,7 @@ app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
         form.append('width', String(conv.width || 720));
         form.append('height', String(conv.height || 900));
         form.append('supports_streaming', 'true');
-        form.append('video', fs.createReadStream(tmpOut), {
+        form.append('video', fs.createReadStream(sendFilePath), {
           filename: 'glow-trace-art.mp4',
           contentType: 'video/mp4'
         });
@@ -581,7 +619,7 @@ app.post('/api/send-to-telegram', upload.single('video'), async (req, res) => {
   } finally {
     for (const p of [tmpIn, tmpOut]) {
       if (p && fs.existsSync(p)) {
-        try { fs.unlinkSync(p); } catch (e) {}
+        fs.promises.unlink(p).catch(() => {});
       }
     }
   }
@@ -762,17 +800,19 @@ async function sendStart(chatId, firstName = '', username = '') {
     replyRows[replyRows.length - 1].push({ text: '⚙️ Admin panel' });
   }
 
-  await tgCall('sendMessage', {
-    chat_id: chatId,
-    text,
-    parse_mode: 'HTML',
-    reply_markup: { inline_keyboard: inlineKb }
-  });
-  await tgCall('sendMessage', {
-    chat_id: chatId,
-    text: '👇 Tezkor tugmalar tayyor:',
-    reply_markup: { keyboard: replyRows, resize_keyboard: true }
-  });
+  await Promise.all([
+    tgCall('sendMessage', {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: { inline_keyboard: inlineKb }
+    }),
+    tgCall('sendMessage', {
+      chat_id: chatId,
+      text: '👇 Tezkor tugmalar tayyor:',
+      reply_markup: { keyboard: replyRows, resize_keyboard: true }
+    })
+  ]);
 }
 
 async function sendTarifs(chatId) {

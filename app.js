@@ -1193,6 +1193,9 @@
       if (!state.velnoxNegCanvas || !state.velnoxPosCanvas) buildVelnoxLayers();
     } else if (style === 'bloom') {
       if (!state.bloomData || !state.bloomSharpCanvas) buildBloomParticles();
+    } else if (style === 'cyber' || style === 'dna' || style === 'blackhole' || style === 'crystal' || style === 'fireworks') {
+      if (!state.bloomData || !state.bloomSharpCanvas) buildBloomParticles();
+      if (!state.velnoxNegCanvas || !state.velnoxPosCanvas) buildVelnoxLayers();
     }
   }
 
@@ -1766,6 +1769,28 @@
     // Dedicated FULL-COLOR ORGANIC PARTICLE BLOOM GROW mode (codeb1oom.py style!)
     if (state.animStyle === 'bloom' && state.bloomData && state.bloomSharpCanvas) {
       renderBloomGrowFrame(ctx, t, masterAlpha);
+      return;
+    }
+
+    // 5 NEW SUPER EXCITING MODES:
+    if (state.animStyle === 'cyber' && state.velnoxPosCanvas && state.bloomData) {
+      renderCyberLaserFrame(ctx, t, masterAlpha);
+      return;
+    }
+    if (state.animStyle === 'dna' && state.bloomData && state.velnoxPosCanvas) {
+      renderDnaSpiralFrame(ctx, t, masterAlpha);
+      return;
+    }
+    if (state.animStyle === 'blackhole' && state.bloomData && state.velnoxPosCanvas) {
+      renderBlackHoleFrame(ctx, t, masterAlpha);
+      return;
+    }
+    if (state.animStyle === 'crystal' && state.velnoxNegCanvas && state.velnoxPosCanvas && state.bloomData) {
+      renderCrystalFrostFrame(ctx, t, masterAlpha);
+      return;
+    }
+    if (state.animStyle === 'fireworks' && state.bloomData && state.velnoxPosCanvas) {
+      renderFireworksFrame(ctx, t, masterAlpha);
       return;
     }
 
@@ -3058,6 +3083,631 @@
     c.restore(); // end cinema zoom
 
     // 5. Minimalist Poetic Quote at Bottom
+    const quote = state.quote.trim();
+    if (quote && t >= TIMELINE.TEXT_START - 2.0) {
+      drawPoeticQuote(c, quote, t + 2.0, masterAlpha);
+    }
+  }
+
+  // ===== NEW ANIMATION 1: Cyber Laser 3D Scanner + Glitch Hologram (cyber) =====
+  function renderCyberLaserFrame(c, t, masterAlpha) {
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = 1;
+    c.fillStyle = '#030309';
+    c.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+    const { x: drawX, y: drawY, w: drawW, h: drawH } = state.artBounds;
+    const cx = drawX + drawW / 2;
+    const cy = drawY + drawH / 2;
+    const palKey = state.paletteKey === 'original' ? 'nebula' : state.paletteKey;
+    const midCol = samplePalette(0.35, palKey);
+    const accCol = samplePalette(0.75, palKey);
+
+    c.save();
+    if (state.cinemaZoom) {
+      const zp = easeSine(clamp(t / TIMELINE.FADE_START, 0, 1));
+      const scale = 1.0 + 0.038 * zp;
+      c.translate(cx, cy);
+      c.scale(scale, scale);
+      c.translate(-cx, -cy);
+    }
+
+    // 1. Cyber Perspective HUD Grid at Top & Bottom
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    c.strokeStyle = `rgba(${midCol[0]}, ${midCol[1]}, ${midCol[2]}, ${(0.12 * masterAlpha).toFixed(3)})`;
+    c.lineWidth = 1;
+    const gridStep = 36;
+    const scrollOff = (t * 28) % gridStep;
+    for (let x = drawX; x <= drawX + drawW; x += gridStep) {
+      c.beginPath();
+      c.moveTo(x, drawY);
+      c.lineTo(x, drawY + drawH);
+      c.stroke();
+    }
+    for (let y = drawY + scrollOff; y <= drawY + drawH; y += gridStep) {
+      c.beginPath();
+      c.moveTo(drawX, y);
+      c.lineTo(drawX + drawW, y);
+      c.stroke();
+    }
+    c.restore();
+
+    // 2. Dual Laser Scan Progress (0.2s .. 9.6s)
+    const scanP = easeInOut(clamp((t - 0.2) / 9.2, 0, 1));
+    const scanY = drawY + scanP * drawH;
+
+    // 3. Draw Scanned Hologram Region above laser beam
+    if (scanP > 0.01) {
+      c.save();
+      c.beginPath();
+      c.rect(drawX - 30, drawY - 30, drawW + 60, (scanY - drawY) + 30);
+      c.clip();
+
+      // Occasional RGB cyber-glitch slice displacement
+      const glitchPulse = Math.sin(t * 17) * Math.cos(t * 29);
+      const gx = glitchPulse > 0.82 ? (Math.sin(t * 95) * 6) : 0;
+
+      if (Math.abs(gx) > 0.5) {
+        c.globalCompositeOperation = 'lighter';
+        c.globalAlpha = 0.55 * masterAlpha;
+        c.drawImage(state.velnoxNegCanvas, drawX + gx, drawY, drawW, drawH);
+        c.drawImage(state.velnoxPosCanvas, drawX - gx, drawY, drawW, drawH);
+      }
+
+      c.globalCompositeOperation = 'source-over';
+      c.globalAlpha = 0.94 * masterAlpha;
+      c.drawImage(state.velnoxPosCanvas, drawX, drawY, drawW, drawH);
+
+      if (state.useBloom) {
+        c.globalCompositeOperation = 'lighter';
+        c.globalAlpha = 0.34 * state.glowIntensity * masterAlpha;
+        c.drawImage(state.velnoxPosCanvas, drawX - 2, drawY - 2, drawW + 4, drawH + 4);
+      }
+
+      // CRT Hologram horizontal scanlines overlay
+      c.globalCompositeOperation = 'source-over';
+      c.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      for (let y = drawY; y < scanY; y += 4) {
+        c.fillRect(drawX, y, drawW, 1.4);
+      }
+      c.restore();
+    }
+
+    // 4. Digital Voxel Particles materializing along the laser beam
+    const bd = state.bloomData;
+    if (bd && scanP < 0.99) {
+      const { count, tx, ty, colR, colG, colB } = bd;
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < count; i += 2) {
+        const py = ty[i];
+        const dist = py - scanY;
+        if (dist < -32 || dist > 65) continue;
+        const norm = 1 - Math.abs(dist - 10) / 55;
+        if (norm <= 0) continue;
+        const jitX = Math.sin(t * 35 + i) * 18 * (dist > 0 ? (dist / 65) : 0);
+        const px = tx[i] + jitX;
+        const a = norm * 0.85 * masterAlpha;
+        c.fillStyle = dist > 0
+          ? `rgba(${accCol[0]}, ${accCol[1]}, ${accCol[2]}, ${a.toFixed(3)})`
+          : `rgba(${colR[i]}, ${colG[i]}, ${colB[i]}, ${a.toFixed(3)})`;
+        c.fillRect(px - 2, py - 2, 4.2, 4.2);
+      }
+      c.restore();
+    }
+
+    // 5. Blazing Cyber Laser Beam Bar + HUD Target Brackets
+    if (scanP > 0.005 && scanP < 0.995) {
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      const lg = c.createLinearGradient(0, scanY - 26, 0, scanY + 26);
+      lg.addColorStop(0, 'rgba(0,0,0,0)');
+      lg.addColorStop(0.35, `rgba(${midCol[0]}, ${midCol[1]}, ${midCol[2]}, ${(0.65 * masterAlpha).toFixed(3)})`);
+      lg.addColorStop(0.5, `rgba(255, 255, 255, ${(0.98 * masterAlpha).toFixed(3)})`);
+      lg.addColorStop(0.65, `rgba(${accCol[0]}, ${accCol[1]}, ${accCol[2]}, ${(0.65 * masterAlpha).toFixed(3)})`);
+      lg.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = lg;
+      c.fillRect(drawX - 18, scanY - 26, drawW + 36, 52);
+
+      // HUD Percentage readout on laser bar
+      c.font = 'bold 11px Consolas, monospace';
+      c.fillStyle = `rgba(220, 245, 255, ${(0.9 * masterAlpha).toFixed(3)})`;
+      c.fillText(`SCAN // ${Math.round(scanP * 100)}%`, drawX + 8, scanY - 8);
+      c.restore();
+    }
+
+    // Repeating post-scan hologram shimmer wave
+    if (t > 10.0) {
+      const waveP = ((t - 10.0) % 4.2) / 3.0;
+      if (waveP <= 1) {
+        const wy = drawY + waveP * drawH;
+        c.save();
+        c.globalCompositeOperation = 'lighter';
+        const wg = c.createLinearGradient(0, wy - 18, 0, wy + 18);
+        wg.addColorStop(0, 'rgba(0,0,0,0)');
+        wg.addColorStop(0.5, `rgba(${accCol[0]}, ${accCol[1]}, ${accCol[2]}, ${(0.45 * masterAlpha).toFixed(3)})`);
+        wg.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = wg;
+        c.fillRect(drawX, wy - 18, drawW, 36);
+        c.restore();
+      }
+    }
+
+    c.restore();
+    const quote = state.quote.trim();
+    if (quote && t >= TIMELINE.TEXT_START - 2.0) {
+      drawPoeticQuote(c, quote, t + 2.0, masterAlpha);
+    }
+  }
+
+  // ===== NEW ANIMATION 2: DNA Double Helix Quantum Spiral (dna) =====
+  function renderDnaSpiralFrame(c, t, masterAlpha) {
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = 1;
+    c.fillStyle = '#03020a';
+    c.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+    const { x: drawX, y: drawY, w: drawW, h: drawH } = state.artBounds;
+    const cx = drawX + drawW / 2;
+    const cy = drawY + drawH / 2;
+    const palKey = state.paletteKey === 'original' ? 'cosmic' : state.paletteKey;
+    const col1 = samplePalette(0.2, palKey);
+    const col2 = samplePalette(0.8, palKey);
+
+    c.save();
+    if (state.cinemaZoom) {
+      const zp = easeSine(clamp(t / TIMELINE.FADE_START, 0, 1));
+      const scale = 1.0 + 0.036 * zp;
+      c.translate(cx, cy);
+      c.scale(scale, scale);
+      c.translate(-cx, -cy);
+    }
+
+    // 1. Background fade-in of luminous positive portrait as DNA strands lock in (6.5s .. 12.0s)
+    const lockImgP = easeInOut(clamp((t - 6.8) / 4.8, 0, 1));
+    if (lockImgP > 0.01) {
+      c.save();
+      c.globalAlpha = lockImgP * 0.88 * masterAlpha;
+      c.drawImage(state.velnoxPosCanvas, drawX, drawY, drawW, drawH);
+      c.restore();
+    }
+
+    // 2. Render Rotating Double Helix Strands + Particles flying from DNA rungs to exact portrait coordinates!
+    const bd = state.bloomData;
+    if (bd) {
+      const { count, tx, ty, size, colR, colG, colB } = bd;
+      const radius = drawW * 0.34;
+      const twists = 3.6;
+
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+
+      // Draw DNA connecting base-pair rungs while helix is active (0..8.8s)
+      const helixFade = clamp(1 - (t - 7.2) / 2.5, 0, 1);
+      if (helixFade > 0.02) {
+        const rungCount = 34;
+        for (let r = 0; r < rungCount; r++) {
+          const ny = r / (rungCount - 1);
+          const ry = drawY + ny * drawH;
+          const phase = ny * Math.PI * 2 * twists - t * 2.8;
+          const xA = cx + Math.sin(phase) * radius;
+          const xB = cx + Math.sin(phase + Math.PI) * radius;
+          c.strokeStyle = `rgba(${col1[0]}, ${col1[1]}, ${col1[2]}, ${(0.22 * helixFade * masterAlpha).toFixed(3)})`;
+          c.lineWidth = 1.4;
+          c.beginPath();
+          c.moveTo(xA, ry);
+          c.lineTo(xB, ry);
+          c.stroke();
+        }
+      }
+
+      for (let i = 0; i < count; i++) {
+        const ny = clamp((ty[i] - drawY) / Math.max(1, drawH), 0, 1);
+        const strand = i & 1;
+        const phase = ny * Math.PI * 2 * twists - t * 2.8 + (strand ? Math.PI : 0);
+        const hx = cx + Math.sin(phase) * radius;
+        const hz = Math.cos(phase); // -1..1 depth cue
+        const hy = ty[i] + Math.cos(phase * 0.5) * 8;
+
+        // Staggered release from DNA helix from center outward (1.8s .. 9.6s)
+        const releaseStart = 1.4 + ny * 5.6 + (i % 11) * 0.14;
+        const releaseDur = 2.1;
+        const raw = clamp((t - releaseStart) / releaseDur, 0, 1);
+        const p = easeInOut(raw);
+
+        const px = hx + (tx[i] - hx) * p;
+        const py = hy + (ty[i] - hy) * p;
+
+        // Once locked & background image is visible, thin out particles for crispness
+        if (raw >= 1 && lockImgP > 0.85 && (i & 7) !== 0) continue;
+
+        const depthScale = (0.7 + 0.45 * (hz + 1) * 0.5) * (1 - p) + p;
+        const a = clamp((0.35 + 0.55 * depthScale) * (1 - lockImgP * 0.35) * masterAlpha, 0, 1);
+        if (a < 0.03) continue;
+
+        const r = state.paletteKey === 'original' ? colR[i] : (strand ? col1[0] : col2[0]);
+        const g = state.paletteKey === 'original' ? colG[i] : (strand ? col1[1] : col2[1]);
+        const b = state.paletteKey === 'original' ? colB[i] : (strand ? col1[2] : col2[2]);
+
+        const sz = size[i] * depthScale * (raw < 1 ? 1.25 : 0.95);
+        c.fillStyle = `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
+        c.fillRect(px - sz * 0.5, py - sz * 0.5, sz, sz);
+      }
+      c.restore();
+    }
+
+    c.restore();
+    const quote = state.quote.trim();
+    if (quote && t >= TIMELINE.TEXT_START - 2.0) {
+      drawPoeticQuote(c, quote, t + 2.0, masterAlpha);
+    }
+  }
+
+  // ===== NEW ANIMATION 3: Black Hole Gravitational Singularity (blackhole) =====
+  function renderBlackHoleFrame(c, t, masterAlpha) {
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = 1;
+    c.fillStyle = '#020107';
+    c.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+    const { x: drawX, y: drawY, w: drawW, h: drawH } = state.artBounds;
+    const cx = drawX + drawW / 2;
+    const cy = drawY + drawH / 2;
+    const palKey = state.paletteKey === 'original' ? 'gold' : state.paletteKey;
+    const diskCol = samplePalette(0.35, palKey);
+    const rimCol = samplePalette(0.75, palKey);
+
+    c.save();
+    if (state.cinemaZoom) {
+      const zp = easeSine(clamp(t / TIMELINE.FADE_START, 0, 1));
+      const scale = 1.0 + 0.04 * zp;
+      c.translate(cx, cy);
+      c.scale(scale, scale);
+      c.translate(-cx, -cy);
+    }
+
+    // Phase timeline:
+    // 0.0 .. 3.6s: Swirling Golden/Cosmic Accretion Disk + Event Horizon Singularity
+    // 3.6 .. 9.6s: White-Hole Quantum Ejection spirals particles into exact portrait!
+    const ejectP = clamp((t - 3.2) / 6.2, 0, 1);
+    const bhFade = clamp(1 - (t - 4.2) / 2.8, 0, 1);
+
+    // 1. Draw Gargantua Black Hole Event Horizon & Glowing Accretion Disk
+    if (bhFade > 0.01) {
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      const diskR = 78 + Math.sin(t * 3) * 4;
+      const halo = c.createRadialGradient(cx, cy, diskR * 0.45, cx, cy, diskR * 2.4);
+      halo.addColorStop(0, 'rgba(0, 0, 0, 1)');
+      halo.addColorStop(0.26, `rgba(255, 250, 230, ${(0.95 * bhFade * masterAlpha).toFixed(3)})`);
+      halo.addColorStop(0.45, `rgba(${diskCol[0]}, ${diskCol[1]}, ${diskCol[2]}, ${(0.75 * bhFade * masterAlpha).toFixed(3)})`);
+      halo.addColorStop(0.75, `rgba(${rimCol[0]}, ${rimCol[1]}, ${rimCol[2]}, ${(0.28 * bhFade * masterAlpha).toFixed(3)})`);
+      halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      c.fillStyle = halo;
+      c.beginPath();
+      c.arc(cx, cy, diskR * 2.4, 0, Math.PI * 2);
+      c.fill();
+
+      // Tilted relativistic Doppler accretion ring
+      c.translate(cx, cy);
+      c.rotate(-0.28 + t * 0.15);
+      c.strokeStyle = `rgba(255, 235, 195, ${(0.82 * bhFade * masterAlpha).toFixed(3)})`;
+      c.lineWidth = 4.5;
+      c.beginPath();
+      c.ellipse(0, 0, diskR * 2.1, diskR * 0.42, 0, 0, Math.PI * 2);
+      c.stroke();
+
+      // Pure black event horizon core
+      c.globalCompositeOperation = 'source-over';
+      c.fillStyle = '#000000';
+      c.beginPath();
+      c.arc(0, 0, diskR * 0.48, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+    }
+
+    // 2. Crisp portrait reveal underneath as particles settle (7.0s .. 11.8s)
+    const imgReveal = easeInOut(clamp((t - 7.0) / 4.5, 0, 1));
+    if (imgReveal > 0.01) {
+      c.save();
+      c.globalAlpha = imgReveal * 0.90 * masterAlpha;
+      c.drawImage(state.velnoxPosCanvas, drawX, drawY, drawW, drawH);
+      c.restore();
+    }
+
+    // 3. Swirling Orbital Particles sucked into Event Horizon -> Ejected into Portrait!
+    const bd = state.bloomData;
+    if (bd) {
+      const { count, tx, ty, size, colR, colG, colB } = bd;
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+
+      for (let i = 0; i < count; i++) {
+        const dx = tx[i] - cx;
+        const dy = ty[i] - cy;
+        const targetR = Math.hypot(dx, dy);
+        const targetAng = Math.atan2(dy, dx);
+
+        // Orbit radius around singularity before ejection
+        const orbitR = 36 + (i % 97) * 2.4;
+        const orbitSpd = 2.6 + (97 - (i % 97)) * 0.035;
+        const orbitAng = targetAng + t * orbitSpd;
+
+        const pStart = 2.6 + (targetR / Math.max(1, drawW * 0.65)) * 3.4 + (i % 13) * 0.12;
+        const pDur = 2.3;
+        const raw = clamp((t - pStart) / pDur, 0, 1);
+        const p = easeOut(raw);
+
+        if (raw >= 1 && imgReveal > 0.85 && (i & 7) !== 0) continue;
+
+        const curR = orbitR * (1 - p) + targetR * p;
+        const curAng = orbitAng * (1 - p) + targetAng * p;
+        const px = cx + Math.cos(curAng) * curR;
+        const py = cy + Math.sin(curAng) * curR * (0.55 + 0.45 * p);
+
+        const a = clamp((0.35 + 0.6 * p) * (1 - imgReveal * 0.35) * masterAlpha, 0, 1);
+        if (a < 0.03) continue;
+
+        const r = state.paletteKey === 'original' ? colR[i] : Math.round(diskCol[0] * (1 - p) + colR[i] * p);
+        const g = state.paletteKey === 'original' ? colG[i] : Math.round(diskCol[1] * (1 - p) + colG[i] * p);
+        const b = state.paletteKey === 'original' ? colB[i] : Math.round(diskCol[2] * (1 - p) + colB[i] * p);
+
+        const sz = size[i] * (1.25 - 0.3 * p);
+        c.fillStyle = `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
+        c.fillRect(px - sz * 0.5, py - sz * 0.5, sz, sz);
+      }
+      c.restore();
+    }
+
+    c.restore();
+    const quote = state.quote.trim();
+    if (quote && t >= TIMELINE.TEXT_START - 2.0) {
+      drawPoeticQuote(c, quote, t + 2.0, masterAlpha);
+    }
+  }
+
+  // ===== NEW ANIMATION 4: Crystal Ice Diamond Frost & Shatter (crystal) =====
+  function renderCrystalFrostFrame(c, t, masterAlpha) {
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = 1;
+    c.fillStyle = '#03060e';
+    c.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+    const { x: drawX, y: drawY, w: drawW, h: drawH } = state.artBounds;
+    const cx = drawX + drawW / 2;
+    const cy = drawY + drawH / 2;
+    const maxR = Math.hypot(drawW * 0.65, drawH * 0.68);
+
+    c.save();
+    if (state.cinemaZoom) {
+      const zp = easeSine(clamp(t / TIMELINE.FADE_START, 0, 1));
+      const scale = 1.0 + 0.036 * zp;
+      c.translate(cx, cy);
+      c.scale(scale, scale);
+      c.translate(-cx, -cy);
+    }
+
+    // Stage 1 (0.2s .. 7.8s): Glacial Ice Frost freezes outward from center with diamond facets!
+    const freezeP = easeOut(clamp((t - 0.2) / 7.5, 0, 1));
+    const freezeR = freezeP * maxR * 1.12;
+
+    // Stage 2 (8.8s .. 12.6s): Warm Diamond Prism Wave thaws ice into radiant neon artwork!
+    const thawP = t >= 8.8 ? easeInOut(clamp((t - 8.8) / 3.6, 0, 1)) : 0;
+    const thawR = thawP * maxR * 1.15;
+
+    // 1. Frozen Ice-Crystal Layer (between thawR and freezeR)
+    if (freezeR > 3 && thawP < 1) {
+      c.save();
+      c.beginPath();
+      c.arc(cx, cy, freezeR, 0, Math.PI * 2);
+      c.clip();
+
+      c.globalAlpha = masterAlpha;
+      c.drawImage(state.velnoxNegCanvas, drawX, drawY, drawW, drawH);
+      c.globalCompositeOperation = 'lighter';
+      c.globalAlpha = 0.35 * state.glowIntensity * masterAlpha;
+      c.drawImage(state.velnoxNegCanvas, drawX - 1.5, drawY - 1.5, drawW + 3, drawH + 3);
+      c.restore();
+    }
+
+    // 2. Thawed Diamond Neon Layer (inside thawR)
+    if (thawR > 3) {
+      c.save();
+      c.beginPath();
+      c.arc(cx, cy, thawR, 0, Math.PI * 2);
+      c.clip();
+
+      c.globalAlpha = masterAlpha;
+      c.drawImage(state.velnoxPosCanvas, drawX, drawY, drawW, drawH);
+      if (state.useBloom) {
+        c.globalCompositeOperation = 'lighter';
+        c.globalAlpha = 0.32 * state.glowIntensity * masterAlpha;
+        c.drawImage(state.velnoxPosCanvas, drawX - 1.5, drawY - 1.5, drawW + 3, drawH + 3);
+      }
+      c.restore();
+    }
+
+    // 3. Geometric Diamond Ice Facets & Snowflake Sparks along the Expanding Frost Ring
+    const bd = state.bloomData;
+    if (bd) {
+      const { count, tx, ty, size } = bd;
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+
+      for (let i = 0; i < count; i += 4) {
+        const px = tx[i], py = ty[i];
+        const d = Math.hypot(px - cx, py - cy);
+
+        // Sparkle on frost frontier OR thaw frontier
+        const dFrost = Math.abs(d - freezeR);
+        const dThaw = thawR > 0 ? Math.abs(d - thawR) : 9999;
+        const minD = Math.min(dFrost, dThaw);
+        if (minD > 34) continue;
+
+        const intensity = (1 - minD / 34);
+        const a = intensity * intensity * 0.9 * masterAlpha;
+        const r = size[i] * (2.2 + intensity * 2.5);
+        const ang = (i * 0.618) + t * 1.8;
+        const cs = Math.cos(ang) * r;
+        const sn = Math.sin(ang) * r;
+
+        c.fillStyle = dThaw < dFrost
+          ? `rgba(255, 235, 190, ${a.toFixed(3)})`
+          : `rgba(195, 240, 255, ${a.toFixed(3)})`;
+        c.beginPath();
+        c.moveTo(px + cs, py + sn);
+        c.lineTo(px - sn * 0.5, py + cs * 0.5);
+        c.lineTo(px - cs, py - sn);
+        c.lineTo(px + sn * 0.5, py - cs * 0.5);
+        c.closePath();
+        c.fill();
+      }
+      c.restore();
+    }
+
+    // 4. Sparkling 4-Point Diamond Stars across the artwork
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < state.twinkles.length; i++) {
+      const tw = state.twinkles[i];
+      const d = Math.hypot(tw.x - cx, tw.y - cy);
+      if (d > freezeR) continue;
+      const pulse = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * tw.freq * 1.4 + tw.phase));
+      const a = pulse * 0.85 * masterAlpha;
+      const col = d < thawR ? getSegmentColor(tw.seg) : [200, 242, 255];
+      drawFourPointStar(c, tw.x, tw.y, tw.size * (0.75 + 0.45 * pulse), col, a);
+    }
+    c.restore();
+
+    c.restore();
+    const quote = state.quote.trim();
+    if (quote && t >= TIMELINE.TEXT_START - 2.0) {
+      drawPoeticQuote(c, quote, t + 2.0, masterAlpha);
+    }
+  }
+
+  // ===== NEW ANIMATION 5: Grand Fireworks Festival Finale (fireworks) =====
+  function renderFireworksFrame(c, t, masterAlpha) {
+    c.globalCompositeOperation = 'source-over';
+    c.globalAlpha = 1;
+    c.fillStyle = '#03020a';
+    c.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+    const { x: drawX, y: drawY, w: drawW, h: drawH } = state.artBounds;
+    const cx = drawX + drawW / 2;
+    const cy = drawY + drawH / 2;
+
+    c.save();
+    if (state.cinemaZoom) {
+      const zp = easeSine(clamp(t / TIMELINE.FADE_START, 0, 1));
+      const scale = 1.0 + 0.036 * zp;
+      c.translate(cx, cy);
+      c.scale(scale, scale);
+      c.translate(-cx, -cy);
+    }
+
+    // 5 Staggered Firework Rockets launching from bottom into 5 sectors of the artwork!
+    const bursts = [
+      { bx: cx, by: cy - drawH * 0.18, launchT: 0.15, burstT: 1.15, col: [255, 200, 110] },
+      { bx: cx - drawW * 0.24, by: cy - drawH * 0.04, launchT: 0.75, burstT: 1.75, col: [110, 235, 255] },
+      { bx: cx + drawW * 0.24, by: cy - drawH * 0.04, launchT: 1.35, burstT: 2.35, col: [255, 130, 225] },
+      { bx: cx - drawW * 0.18, by: cy + drawH * 0.22, launchT: 1.95, burstT: 2.95, col: [130, 255, 185] },
+      { bx: cx + drawW * 0.18, by: cy + drawH * 0.22, launchT: 2.55, burstT: 3.55, col: [165, 155, 255] },
+    ];
+
+    // 1. Background luminous portrait crystallization after fireworks settle (6.8s .. 11.5s)
+    const imgReveal = easeInOut(clamp((t - 6.8) / 4.5, 0, 1));
+    if (imgReveal > 0.01) {
+      c.save();
+      c.globalAlpha = imgReveal * 0.90 * masterAlpha;
+      c.drawImage(state.velnoxPosCanvas, drawX, drawY, drawW, drawH);
+      c.restore();
+    }
+
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+
+    // 2. Draw Ascending Firework Rockets & Burst Flashes
+    for (let b = 0; b < bursts.length; b++) {
+      const br = bursts[b];
+      if (t >= br.launchT && t < br.burstT) {
+        const lp = easeOut((t - br.launchT) / (br.burstT - br.launchT));
+        const rx = br.bx + Math.sin(lp * Math.PI * 3 + b) * 10;
+        const ry = (LOGICAL_H - 30) + (br.by - (LOGICAL_H - 30)) * lp;
+
+        // Golden ascending spark trail
+        const tg = c.createLinearGradient(rx, ry, rx, ry + 55);
+        tg.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * masterAlpha).toFixed(3)})`);
+        tg.addColorStop(0.4, `rgba(${br.col[0]}, ${br.col[1]}, ${br.col[2]}, ${(0.7 * masterAlpha).toFixed(3)})`);
+        tg.addColorStop(1, 'rgba(0,0,0,0)');
+        c.strokeStyle = tg;
+        c.lineWidth = 3.2;
+        c.beginPath();
+        c.moveTo(rx, ry);
+        c.lineTo(rx, ry + 55);
+        c.stroke();
+      } else if (t >= br.burstT && t < br.burstT + 0.65) {
+        const fp = 1 - (t - br.burstT) / 0.65;
+        const rad = 20 + (1 - fp) * 145;
+        const fg = c.createRadialGradient(br.bx, br.by, 2, br.bx, br.by, rad);
+        fg.addColorStop(0, `rgba(255, 255, 255, ${(fp * 0.95 * masterAlpha).toFixed(3)})`);
+        fg.addColorStop(0.45, `rgba(${br.col[0]}, ${br.col[1]}, ${br.col[2]}, ${(fp * 0.6 * masterAlpha).toFixed(3)})`);
+        fg.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = fg;
+        c.beginPath();
+        c.arc(br.bx, br.by, rad, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+
+    // 3. Firework Chrysanthemum Burst Sparks -> Gravity Arc -> Lock into Portrait Pixels!
+    const bd = state.bloomData;
+    if (bd) {
+      const { count, tx, ty, ox, oy, size, colR, colG, colB } = bd;
+      for (let i = 0; i < count; i++) {
+        const bIdx = i % bursts.length;
+        const br = bursts[bIdx];
+        if (t < br.burstT) continue;
+
+        const dt = t - br.burstT;
+        const flightDur = 3.4 + (i % 9) * 0.22;
+        const raw = clamp(dt / flightDur, 0, 1);
+
+        if (raw >= 1 && imgReveal > 0.85 && (i & 7) !== 0) continue;
+
+        // First 35% of flight: spherical firework chrysanthemum burst outward; then magnetic glide to target pixel!
+        const burstX = br.bx + ox[i] * 1.45;
+        const burstY = br.by + oy[i] * 1.45 + 22 * Math.sin(raw * Math.PI); // gravity arc
+        const p = easeInOut(raw);
+
+        let px, py;
+        if (raw < 0.35) {
+          const bp = easeOut(raw / 0.35);
+          px = br.bx + (burstX - br.bx) * bp;
+          py = br.by + (burstY - br.by) * bp;
+        } else {
+          const mp = easeInOut((raw - 0.35) / 0.65);
+          px = burstX + (tx[i] - burstX) * mp;
+          py = burstY + (ty[i] - burstY) * mp;
+        }
+
+        const a = clamp((0.45 + 0.55 * Math.sin(raw * Math.PI * 0.85)) * (1 - imgReveal * 0.35) * masterAlpha, 0, 1);
+        if (a < 0.03) continue;
+
+        const r = Math.round(br.col[0] * (1 - p) + colR[i] * p);
+        const g = Math.round(br.col[1] * (1 - p) + colG[i] * p);
+        const b = Math.round(br.col[2] * (1 - p) + colB[i] * p);
+
+        const sz = size[i] * (1.35 - 0.35 * p);
+        c.fillStyle = `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
+        c.fillRect(px - sz * 0.5, py - sz * 0.5, sz, sz);
+      }
+    }
+
+    c.restore();
+    c.restore();
+
     const quote = state.quote.trim();
     if (quote && t >= TIMELINE.TEXT_START - 2.0) {
       drawPoeticQuote(c, quote, t + 2.0, masterAlpha);

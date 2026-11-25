@@ -191,6 +191,77 @@ const store = {
   isAdmin(chatId) {
     return store.getAdminIds().includes(String(chatId));
   },
+  addAdmin(chatId) {
+    const cid = String(chatId).trim();
+    if (!/^-?\d+$/.test(cid)) return false;
+    const data = loadData();
+    const admins = data.admin_ids.map(String);
+    if (!admins.includes(cid)) {
+      data.admin_ids.push(cid);
+      saveData(data);
+    }
+    return true;
+  },
+  removeAdmin(chatId) {
+    const cid = String(chatId).trim();
+    const data = loadData();
+    if (data.admin_ids.length <= 1) return false;
+    data.admin_ids = data.admin_ids.map(String).filter(id => id !== cid);
+    saveData(data);
+    return true;
+  },
+  getAllUsers() {
+    const data = loadData();
+    return Object.entries(data.users || {}).map(([id, u]) => ({ chat_id: id, ...u }));
+  },
+  addCredits(chatId, count = 1) {
+    const cid = String(chatId).trim();
+    const data = loadData();
+    if (!data.users[cid]) {
+      data.users[cid] = {
+        name: '',
+        username: '',
+        free_used: false,
+        credits: 0,
+        premium_until: 0,
+        videos_created: 0,
+        created_at: Math.floor(Date.now() / 1000)
+      };
+    }
+    data.users[cid].credits = Math.max(0, (parseInt(data.users[cid].credits || 0, 10) || 0) + count);
+    saveData(data);
+    return data.users[cid];
+  },
+  grantPremiumDays(chatId, days = 30) {
+    const cid = String(chatId).trim();
+    const now = Math.floor(Date.now() / 1000);
+    const data = loadData();
+    if (!data.users[cid]) {
+      data.users[cid] = {
+        name: '',
+        username: '',
+        free_used: false,
+        credits: 0,
+        premium_until: 0,
+        videos_created: 0,
+        created_at: now
+      };
+    }
+    const base = Math.max(now, parseInt(data.users[cid].premium_until || 0, 10) || 0);
+    data.users[cid].premium_until = days > 0 ? base + days * 86400 : 0;
+    saveData(data);
+    return data.users[cid];
+  },
+  resetFreeTrial(chatId) {
+    const cid = String(chatId).trim();
+    const data = loadData();
+    if (data.users[cid]) {
+      data.users[cid].free_used = false;
+      saveData(data);
+      return true;
+    }
+    return false;
+  },
   claimAdminIfEmpty(chatId) {
     const cid = String(chatId);
     const data = loadData();
@@ -375,7 +446,8 @@ const store = {
       active_premium: users.filter(u => (parseInt(u.premium_until || 0, 10) || 0) > now).length,
       total_videos: users.reduce((acc, u) => acc + (parseInt(u.videos_created || 0, 10) || 0), 0),
       pending_payments: payments.filter(p => p && p.status === 'pending').length,
-      approved_payments: payments.filter(p => p && p.status === 'approved').length
+      approved_payments: payments.filter(p => p && p.status === 'approved').length,
+      total_revenue: payments.filter(p => p && p.status === 'approved').reduce((acc, p) => acc + (parseInt(p.amount || 0, 10) || 0), 0)
     };
   }
 };
@@ -718,7 +790,7 @@ async function syncBotUserCountHeader(force = false) {
     const fullDesc =
       `👥 Jami foydalanuvchilar: ${st.total_users} ta\n` +
       `🎬 Tayyorlangan videolar: ${st.total_videos} ta\n\n` +
-      `✦ Glow Trace Art PRO — rasmingizdan 12 xil yorqin 3D gologramma, Matrix 0/1, raketa va neon kontur video-animatsiyalar tayyorlab beruvchi bot!\n` +
+      `✦ Glow Trace Art PRO — rasmingizdan 18 xil yorqin 3D gologramma, Matrix 0/1, Kiber Lazer, DNK Spiral, Qora Tuynuk va neon kontur video-animatsiyalar tayyorlab beruvchi bot!\n` +
       `🎁 1-chi rasm va animatsiya BEPUL!`;
     await tgCall('setMyShortDescription', { short_description: shortDesc.slice(0, 120) }, 10000);
     await tgCall('setMyDescription', { description: fullDesc.slice(0, 512) }, 10000);
@@ -774,7 +846,7 @@ async function sendStart(chatId, firstName = '', username = '') {
     `${planLine}\n\n` +
     `🎬 <b>Qanday ishlaydi:</b>\n` +
     `1. Pastdagi tugma orqali ilovani oching.\n` +
-    `2. 12 ta super animatsiyadan birini tanlang va rasmingizni yuklang.\n` +
+    `2. 18 ta super animatsiyadan birini tanlang va rasmingizni yuklang.\n` +
     `3. <b>«Botga tayyor video yuborish»</b> tugmasini bosing — tayyor <b>MP4 video</b> avtomatik shu botga keladi!`;
 
   const inlineKb = [
@@ -864,34 +936,99 @@ async function promptPaymentReceipt(chatId, plan) {
   });
 }
 
-async function sendAdminPanel(chatId) {
+async function sendAdminPanel(chatId, messageId = null) {
   if (!store.claimAdminIfEmpty(chatId)) {
     return tgCall('sendMessage', { chat_id: chatId, text: '⛔ Bu bo‘lim faqat bot admini uchun!' });
   }
   const s = store.getSettings();
   const st = store.getStats();
+  const admins = store.getAdminIds();
+  const dbStatus = pgPool ? '🟢 Neon PostgreSQL ulangan' : '🟡 Local JSON';
   const text =
-    `⚙️ <b>ADMIN PANEL — @quiz15_testbot</b>\n\n` +
+    `⚙️ <b>YANGILANGAN ADMIN PANEL — @quiz15_testbot</b>\n` +
+    `🗄 <b>Baza holati:</b> ${dbStatus}\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
     `💳 <b>Karta raqami:</b> <code>${s.card_number}</code>\n` +
-    `👤 <b>Karta egasi:</b> ${s.card_holder}\n` +
+    `👤 <b>Karta egasi:</b> <b>${s.card_holder}</b>\n` +
     `🎬 <b>1 ta video narxi:</b> <b>${fmtSum(s.video_price)}</b>\n` +
-    `👑 <b>Premium (1 oy cheksiz):</b> <b>${fmtSum(s.premium_price)}</b>\n\n` +
-    `👥 Foydalanuvchilar: <b>${st.total_users}</b> | 👑 Faol Premium: <b>${st.active_premium}</b>\n` +
-    `🎬 Yasalgan videolar: <b>${st.total_videos}</b> | ⏳ Kutayotgan cheklar: <b>${st.pending_payments}</b>`;
+    `👑 <b>Premium (1 oy):</b> <b>${fmtSum(s.premium_price)}</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `👥 <b>Foydalanuvchilar:</b> <b>${st.total_users}</b> ta\n` +
+    `👑 <b>Faol Premium:</b> <b>${st.active_premium}</b> ta\n` +
+    `🎬 <b>Yasalgan videolar:</b> <b>${st.total_videos}</b> ta\n` +
+    `⏳ <b>Kutayotgan cheklar:</b> <b>${st.pending_payments}</b> ta\n` +
+    `✅ <b>Tasdiqlangan to‘lovlar:</b> <b>${st.approved_payments}</b> ta (<b>${fmtSum(st.total_revenue)}</b>)\n` +
+    `🛡 <b>Adminlar (${admins.length}):</b> <code>${admins.join(', ')}</code>`;
 
+  // Arranged cleanly in 2 columns inside Telegram!
   const kb = {
     inline_keyboard: [
-      [{ text: '💳 Karta raqamini kiritish', callback_data: 'adm_set_card' }],
-      [{ text: '👤 Karta egasi (Ism Familiya)', callback_data: 'adm_set_holder' }],
-      [{ text: '🎬 1 ta video narxini saqlash', callback_data: 'adm_set_video_price' }],
-      [{ text: '👑 Premium (1 oy) narxini sozlash', callback_data: 'adm_set_prem_price' }],
       [
-        { text: `⏳ Kutayotgan to‘lovlar (${st.pending_payments})`, callback_data: 'adm_pending' },
+        { text: '💳 Karta raqami', callback_data: 'adm_set_card' },
+        { text: '👤 Karta egasi', callback_data: 'adm_set_holder' }
+      ],
+      [
+        { text: '🎬 Video narxi', callback_data: 'adm_set_video_price' },
+        { text: '👑 Premium narxi', callback_data: 'adm_set_prem_price' }
+      ],
+      [
+        { text: `⏳ Cheklar (${st.pending_payments})`, callback_data: 'adm_pending' },
+        { text: `👥 Userlar (${st.total_users})`, callback_data: 'adm_users_list' }
+      ],
+      [
+        { text: '🎁 Limit / Bonus berish', callback_data: 'adm_give_credit' },
+        { text: '👑 Premium berish', callback_data: 'adm_give_prem' }
+      ],
+      [
+        { text: '🔍 User tekshirish', callback_data: 'adm_check_user' },
+        { text: '📢 Rassilka (E’lon)', callback_data: 'adm_broadcast' }
+      ],
+      [
+        { text: '➕ Admin qo‘shish', callback_data: 'adm_add_admin' },
         { text: '🔄 Yangilash', callback_data: 'admin_home' }
       ]
     ]
   };
+  if (messageId) {
+    const res = await tgCall('editMessageText', {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: kb
+    });
+    if (res && res.ok) return;
+  }
   await tgCall('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', reply_markup: kb });
+}
+
+async function sendAdminUsersList(chatId) {
+  if (!store.isAdmin(chatId)) return;
+  const users = store.getAllUsers().sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+  const now = Math.floor(Date.now() / 1000);
+  const slice = users.slice(0, 25);
+  let lines = `👥 <b>So‘nggi foydalanuvchilar (${users.length} tadan ${slice.length} tasi):</b>\n━━━━━━━━━━━━━━━━━━━━\n`;
+  slice.forEach((u, idx) => {
+    const isPrem = (parseInt(u.premium_until || 0, 10) || 0) > now;
+    const badge = isPrem ? '👑' : (u.credits > 0 ? `🎬(${u.credits})` : (u.free_used ? '⚪' : '🎁'));
+    const uname = u.username ? ` (@${u.username})` : '';
+    lines += `${idx + 1}. ${badge} <code>${u.chat_id}</code> — <b>${u.name || 'Noma’lum'}</b>${uname} | 🎬 ${u.videos_created || 0}\n`;
+  });
+  lines += `\n💡 <i>Istalgan foydalanuvchi ID raqamini nusxalab «🎁 Limit berish» yoki «👑 Premium berish» tugmasi orqali boshqarishingiz mumkin.</i>`;
+  await tgCall('sendMessage', {
+    chat_id: chatId,
+    text: lines,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '🎁 Limit berish', callback_data: 'adm_give_credit' },
+          { text: '👑 Premium berish', callback_data: 'adm_give_prem' }
+        ],
+        [{ text: '⬅️ Admin panelga qaytish', callback_data: 'admin_home' }]
+      ]
+    }
+  });
 }
 
 async function sendPaymentCardToAdmin(admId, pay) {
@@ -1075,6 +1212,117 @@ async function handleAdminInput(chatId, text) {
     await sendAdminPanel(cid);
     return true;
   }
+  if (action === 'adm_give_credit') {
+    const parts = text.trim().split(/\s+/);
+    const targetId = parts[0];
+    const count = parts[1] !== undefined ? parseInt(parts[1], 10) : 1;
+    if (!/^-?\d+$/.test(targetId) || isNaN(count)) {
+      await tgCall('sendMessage', { chat_id: cid, text: '⚠️ Format: <code>ID SONI</code> (masalan: <code>1972059053 5</code>):', parse_mode: 'HTML' });
+      return true;
+    }
+    const u = store.addCredits(targetId, count);
+    store.resetFreeTrial(targetId);
+    USER_STATES.delete(cid);
+    await tgCall('sendMessage', {
+      chat_id: cid,
+      text: `✅ Foydalanuvchi <code>${targetId}</code> balansiga <b>+${count} ta video</b> qo‘shildi! (Hozirgi balansi: <b>${u.credits} ta</b>)`,
+      parse_mode: 'HTML'
+    });
+    await tgCall('sendMessage', {
+      chat_id: targetId,
+      text: `🎁 <b>Admin sizga +${count} ta video tayyorlash huquqi (bonus) taqdim etdi!</b>\nIlovaga kirib rasmingizni yuklashingiz mumkin.`,
+      parse_mode: 'HTML'
+    }).catch(() => {});
+    await sendAdminPanel(cid);
+    return true;
+  }
+  if (action === 'adm_give_prem') {
+    const parts = text.trim().split(/\s+/);
+    const targetId = parts[0];
+    const days = parts[1] !== undefined ? parseInt(parts[1], 10) : 30;
+    if (!/^-?\d+$/.test(targetId) || isNaN(days)) {
+      await tgCall('sendMessage', { chat_id: cid, text: '⚠️ Format: <code>ID KUN</code> (masalan: <code>1972059053 30</code>, bekor qilish uchun <code>ID 0</code>):', parse_mode: 'HTML' });
+      return true;
+    }
+    store.grantPremiumDays(targetId, days);
+    USER_STATES.delete(cid);
+    await tgCall('sendMessage', {
+      chat_id: cid,
+      text: days > 0
+        ? `✅ Foydalanuvchi <code>${targetId}</code> ga <b>${days} kunlik Premium</b> berildi!`
+        : `✅ Foydalanuvchi <code>${targetId}</code> ning Premium obunasi bekor qilindi.`,
+      parse_mode: 'HTML'
+    });
+    if (days > 0) {
+      await tgCall('sendMessage', {
+        chat_id: targetId,
+        text: `👑 <b>Tabriklaymiz! Admin sizga ${days} kunlik CHEKSIZ PREMIUM taqdim etdi!</b>`,
+        parse_mode: 'HTML'
+      }).catch(() => {});
+    }
+    await sendAdminPanel(cid);
+    return true;
+  }
+  if (action === 'adm_check_user') {
+    const targetId = text.trim();
+    if (!/^-?\d+$/.test(targetId)) {
+      await tgCall('sendMessage', { chat_id: cid, text: '⚠️ Foydalanuvchi Telegram ID raqamini yuboring:' });
+      return true;
+    }
+    const uStat = store.getUserStatus(targetId);
+    const rawU = loadData().users[targetId] || {};
+    USER_STATES.delete(cid);
+    await tgCall('sendMessage', {
+      chat_id: cid,
+      text:
+        `🔍 <b>Foydalanuvchi ma’lumotlari:</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n` +
+        `🆔 <b>ID:</b> <code>${targetId}</code>\n` +
+        `👤 <b>Ism:</b> ${rawU.name || 'Noma’lum'} ${rawU.username ? `(@${rawU.username})` : ''}\n` +
+        `👑 <b>Premium:</b> ${uStat.is_premium ? `Faol (${uStat.premium_days_left} kun qoldi)` : 'Yo‘q'}\n` +
+        `🎬 <b>Video limiti (kredit):</b> ${uStat.credits} ta\n` +
+        `🎁 <b>Bepul urinish:</b> ${uStat.free_used ? 'Ishlatilgan' : 'Mavjud (1 ta)'}\n` +
+        `📊 <b>Yasalgan videolar:</b> ${uStat.videos_created} ta`,
+      parse_mode: 'HTML'
+    });
+    await sendAdminPanel(cid);
+    return true;
+  }
+  if (action === 'adm_add_admin') {
+    const targetId = text.trim();
+    if (!/^-?\d+$/.test(targetId)) {
+      await tgCall('sendMessage', { chat_id: cid, text: '⚠️ Yangi admin Telegram ID raqamini kiriting:' });
+      return true;
+    }
+    store.addAdmin(targetId);
+    USER_STATES.delete(cid);
+    await tgCall('sendMessage', { chat_id: cid, text: `✅ Yangi admin qo‘shildi: <code>${targetId}</code>`, parse_mode: 'HTML' });
+    await sendAdminPanel(cid);
+    return true;
+  }
+  if (action === 'adm_broadcast') {
+    USER_STATES.delete(cid);
+    const users = store.getAllUsers();
+    let okCount = 0;
+    let failCount = 0;
+    await tgCall('sendMessage', { chat_id: cid, text: `📢 Rassilka boshlandi (${users.length} ta foydalanuvchiga)...` });
+    for (const u of users) {
+      const r = await tgCall('sendMessage', {
+        chat_id: u.chat_id,
+        text: `📢 <b>Yangilik / E’lon:</b>\n\n${text}`,
+        parse_mode: 'HTML'
+      });
+      if (r && r.ok) okCount++;
+      else failCount++;
+    }
+    await tgCall('sendMessage', {
+      chat_id: cid,
+      text: `✅ <b>Rassilka yakunlandi!</b>\n\n🟢 Yetib bordi: <b>${okCount}</b> ta\n🔴 Yetib bormadi: <b>${failCount}</b> ta`,
+      parse_mode: 'HTML'
+    });
+    await sendAdminPanel(cid);
+    return true;
+  }
   return false;
 }
 
@@ -1115,17 +1363,34 @@ async function handleUpdate(upd) {
         await promptPaymentReceipt(cid, plan);
       }
     } else if (data === 'admin_home') {
-      await sendAdminPanel(cid);
+      await sendAdminPanel(cid, cq.message?.message_id);
     } else if (data === 'adm_pending') {
       await sendPendingPayments(cid);
-    } else if (['adm_set_card', 'adm_set_holder', 'adm_set_video_price', 'adm_set_prem_price'].includes(data)) {
+    } else if (data === 'adm_users_list') {
+      await sendAdminUsersList(cid);
+    } else if ([
+      'adm_set_card',
+      'adm_set_holder',
+      'adm_set_video_price',
+      'adm_set_prem_price',
+      'adm_give_credit',
+      'adm_give_prem',
+      'adm_check_user',
+      'adm_add_admin',
+      'adm_broadcast'
+    ].includes(data)) {
       if (!store.isAdmin(cid)) return;
       USER_STATES.set(cid, { action: data });
       const prompts = {
         adm_set_card: '💳 Yangi <b>karta raqamini</b> yuboring (masalan: <code>8600 1234 5678 9012</code>):',
         adm_set_holder: '👤 <b>Karta egasining ism familiyasini</b> yuboring (masalan: <code>Ali Valiyev</code>):',
-        adm_set_video_price: '🎬 <b>1 ta video tayyorlash narxini</b> so‘mda kiriting (masalan: <code>10000</code>):',
-        adm_set_prem_price: '👑 <b>1 oylik cheksiz Premium narxini</b> so‘mda kiriting (masalan: <code>49000</code>):'
+        adm_set_video_price: '🎬 <b>1 ta video tayyorlash narxini</b> so‘mda kiriting (masalan: <code>3000</code>):',
+        adm_set_prem_price: '👑 <b>1 oylik cheksiz Premium narxini</b> so‘mda kiriting (masalan: <code>25000</code>):',
+        adm_give_credit: '🎁 Foydalanuvchi <b>Telegram ID</b> raqami va beriladigan <b>video sonini</b> yuboring:\n\nNamuna: <code>1972059053 5</code>',
+        adm_give_prem: '👑 Foydalanuvchi <b>Telegram ID</b> raqami va <b>Premium kunlar sonini</b> yuboring:\n\nNamuna: <code>1972059053 30</code> (bekor qilish uchun <code>ID 0</code>)',
+        adm_check_user: '🔍 Tekshirmoqchi bo‘lgan foydalanuvchining <b>Telegram ID</b> raqamini yuboring:',
+        adm_add_admin: '➕ Yangi admin qilmoqchi bo‘lgan foydalanuvchining <b>Telegram ID</b> raqamini yuboring:',
+        adm_broadcast: '📢 Barcha foydalanuvchilarga yuboriladigan <b>xabar matnini</b> yozib yuboring:'
       };
       await tgCall('sendMessage', {
         chat_id: cid,

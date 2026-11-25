@@ -12,13 +12,23 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, "data.json")
 LOCK_FILE = os.path.join(BASE_DIR, "data.lock")
 
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://neondb_owner:npg_wIk0yGFiSH4e@ep-sweet-rain-be29z29r-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+)
+
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
+
 DEFAULT_DATA = {
-    "admin_ids": [],
+    "admin_ids": ["1972059053", "8354505239"],
     "settings": {
-        "card_number": "Kiritilmagan",
-        "card_holder": "Kiritilmagan",
-        "video_price": 10000,
-        "premium_price": 49000,
+        "card_number": "5614 6824 1425 9384",
+        "card_holder": "FAXRIDDINOVA NODIRA",
+        "video_price": 3000,
+        "premium_price": 25000,
     },
     "users": {},
     "payments": {},

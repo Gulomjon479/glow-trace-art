@@ -35,8 +35,10 @@ let LIVE_WEBAPP_URL = (
 ).replace(/\/+$/, '');
 
 // ==================== DATA STORE ====================
+// YAGONA BOSH ADMIN (Bot yaratilgan asosiy Telegram hisob: G'ulomjon Xoliqulov)
+const OWNER_ADMIN_ID = '1972059053';
 const DEFAULT_DATA = {
-  admin_ids: ['1972059053', '8354505239'],
+  admin_ids: [OWNER_ADMIN_ID],
   settings: {
     card_number: '5614 6824 1425 9384',
     card_holder: 'FAXRIDDINOVA NODIRA',
@@ -62,13 +64,8 @@ let pgDirty = false;
 
 function normalizeData(data) {
   if (!data || typeof data !== 'object') data = {};
-  if (!Array.isArray(data.admin_ids) || data.admin_ids.length === 0) {
-    data.admin_ids = [...DEFAULT_DATA.admin_ids];
-  } else {
-    for (const id of DEFAULT_DATA.admin_ids) {
-      if (!data.admin_ids.map(String).includes(String(id))) data.admin_ids.push(String(id));
-    }
-  }
+  // Faqat yagona Bosh Admin (OWNER_ADMIN_ID) admin bo'ladi!
+  data.admin_ids = [OWNER_ADMIN_ID];
   data.settings = { ...DEFAULT_DATA.settings, ...(data.settings || {}) };
   if (data.settings.card_number === 'Kiritilmagan') data.settings.card_number = DEFAULT_DATA.settings.card_number;
   if (data.settings.card_holder === 'Kiritilmagan') data.settings.card_holder = DEFAULT_DATA.settings.card_holder;
@@ -186,29 +183,16 @@ const store = {
     return { ...data.settings };
   },
   getAdminIds() {
-    return loadData().admin_ids.map(String);
+    return [OWNER_ADMIN_ID];
   },
   isAdmin(chatId) {
-    return store.getAdminIds().includes(String(chatId));
+    return String(chatId).trim() === OWNER_ADMIN_ID;
   },
   addAdmin(chatId) {
-    const cid = String(chatId).trim();
-    if (!/^-?\d+$/.test(cid)) return false;
-    const data = loadData();
-    const admins = data.admin_ids.map(String);
-    if (!admins.includes(cid)) {
-      data.admin_ids.push(cid);
-      saveData(data);
-    }
-    return true;
+    return String(chatId).trim() === OWNER_ADMIN_ID;
   },
   removeAdmin(chatId) {
-    const cid = String(chatId).trim();
-    const data = loadData();
-    if (data.admin_ids.length <= 1) return false;
-    data.admin_ids = data.admin_ids.map(String).filter(id => id !== cid);
-    saveData(data);
-    return true;
+    return false;
   },
   getAllUsers() {
     const data = loadData();
@@ -263,15 +247,7 @@ const store = {
     return false;
   },
   claimAdminIfEmpty(chatId) {
-    const cid = String(chatId);
-    const data = loadData();
-    const admins = data.admin_ids.map(String);
-    if (admins.length === 0) {
-      data.admin_ids = [cid];
-      saveData(data);
-      return true;
-    }
-    return admins.includes(cid);
+    return String(chatId).trim() === OWNER_ADMIN_ID;
   },
   ensureUser(chatId, name = '', username = '') {
     const cid = String(chatId);
@@ -315,7 +291,7 @@ const store = {
       data.users[cid] = u;
       saveData(data);
     }
-    const isAdm = data.admin_ids.map(String).includes(cid);
+    const isAdm = cid === OWNER_ADMIN_ID;
     const premUntil = parseInt(u.premium_until || 0, 10) || 0;
     const isPremium = premUntil > now;
     const freeUsed = Boolean(u.free_used);
@@ -351,7 +327,7 @@ const store = {
       };
     }
     const u = data.users[cid];
-    const isAdm = data.admin_ids.map(String).includes(cid);
+    const isAdm = cid === OWNER_ADMIN_ID;
     const premUntil = parseInt(u.premium_until || 0, 10) || 0;
     if (isAdm) {
       u.videos_created = (parseInt(u.videos_created || 0, 10) || 0) + 1;
@@ -800,14 +776,21 @@ async function syncBotUserCountHeader(force = false) {
 async function setupBotMenu(webappUrl) {
   if (!webappUrl || !webappUrl.startsWith('https://')) return;
   const st = store.getStats();
+  const publicCommands = [
+    { command: 'start', description: `✦ Ilovani ochish (👥 ${st.total_users} ta foydalanuvchi)` },
+    { command: 'tarif', description: '💎 Tariflar va to‘lov' },
+    { command: 'browser', description: '🌐 Brauzerda ochish havolasi' },
+    { command: 'help', description: '📖 Foydalanish qo‘llanmasi' }
+  ];
+  await tgCall('setMyCommands', {
+    commands: publicCommands
+  }, 10000);
   await tgCall('setMyCommands', {
     commands: [
-      { command: 'start', description: `✦ Ilovani ochish (👥 ${st.total_users} ta foydalanuvchi)` },
-      { command: 'tarif', description: '💎 Tariflar va to‘lov' },
-      { command: 'browser', description: '🌐 Brauzerda ochish havolasi' },
-      { command: 'admin', description: '⚙️ Admin panel (faqat admin)' },
-      { command: 'help', description: '📖 Foydalanish qo‘llanmasi' }
-    ]
+      ...publicCommands,
+      { command: 'admin', description: '⚙️ Admin panel (Faqat Bosh Admin)' }
+    ],
+    scope: { type: 'chat', chat_id: Number(OWNER_ADMIN_ID) }
   }, 10000);
   await tgCall('setChatMenuButton', {
     menu_button: {
@@ -984,7 +967,6 @@ async function sendAdminPanel(chatId, messageId = null) {
         { text: '📢 Rassilka (E’lon)', callback_data: 'adm_broadcast' }
       ],
       [
-        { text: '➕ Admin qo‘shish', callback_data: 'adm_add_admin' },
         { text: '🔄 Yangilash', callback_data: 'admin_home' }
       ]
     ]

@@ -23,7 +23,7 @@ except ImportError:
     psycopg2 = None
 
 DEFAULT_DATA = {
-    "admin_ids": ["1972059053", "8354505239"],
+    "admin_ids": ["1972059053"],
     "settings": {
         "card_number": "5614 6824 1425 9384",
         "card_holder": "FAXRIDDINOVA NODIRA",

@@ -53,16 +53,22 @@ def tg_call(method, payload=None, timeout=35):
 
 
 def setup_bot_menu(webapp_url):
+    public_cmds = [
+        {"command": "start", "description": "✦ Glow Trace Art ilovasini ochish"},
+        {"command": "tarif", "description": "💎 Tariflar va to‘lov"},
+        {"command": "browser", "description": "🌐 Brauzerda ochish havolasi"},
+        {"command": "help", "description": "📖 Foydalanish qo‘llanmasi"},
+    ]
+    tg_call(
+        "setMyCommands",
+        {"commands": public_cmds},
+        timeout=10,
+    )
     tg_call(
         "setMyCommands",
         {
-            "commands": [
-                {"command": "start", "description": "✦ Glow Trace Art ilovasini ochish"},
-                {"command": "tarif", "description": "💎 Tariflar va to‘lov"},
-                {"command": "browser", "description": "🌐 Brauzerda ochish havolasi"},
-                {"command": "admin", "description": "⚙️ Admin panel (faqat admin)"},
-                {"command": "help", "description": "📖 Foydalanish qo‘llanmasi"},
-            ]
+            "commands": public_cmds + [{"command": "admin", "description": "⚙️ Admin panel (Faqat Bosh Admin)"}],
+            "scope": {"type": "chat", "chat_id": 1972059053},
         },
         timeout=10,
     )

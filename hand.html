@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Qo‘l sehri — Samuray Qilichlari &amp; Sehrli Aylana</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="fx/fx.css?v=1" />
+  <script src="fx/nav.js?v=1"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body class="fx-page" data-section="hand">
+  <div class="fx-stage" id="fxStage">
+    <video id="fxVideo" playsinline muted></video>
+    <canvas id="fx3d"></canvas>
+    <canvas id="fx2d"></canvas>
+
+    <div class="fx-hud">
+      <div class="fx-title">
+        <h1>🗡 Qo‘l sehri (Samuray Qilichlari)</h1>
+        <p id="modeHint">Kaftingizni kameraga ko‘rsating — qilichlar va sehrli aylana qo‘lingizga bo‘ysunadi!</p>
+      </div>
+      <div class="fx-hud-right">
+        <span class="fx-status" id="fxStatus">Tayyor</span>
+        <button class="fx-icon-btn" id="fxFlip" title="Kamerani almashtirish">🔄</button>
+        <button class="fx-icon-btn" id="fxSave" title="Rasmga saqlash">💾</button>
+      </div>
+    </div>
+
+    <div class="fx-dock">
+      <div class="fx-gesture" id="gestureBadge">✋ Qo‘l ishorasi: Avto (yoki pastdan tanlang)</div>
+      <div class="fx-row" id="modeRow">
+        <button class="fx-chip active" data-mode="auto"><span class="ico">🪄</span><span>Avto (Ishora)</span></button>
+        <button class="fx-chip" data-mode="sphere"><span class="ico">🔮</span><span>Energiya shari</span></button>
+        <button class="fx-chip" data-mode="expand"><span class="ico">💥</span><span>Qilich portlashi</span></button>
+        <button class="fx-chip" data-mode="stream"><span class="ico">🌊</span><span>Qilich oqimi</span></button>
+        <button class="fx-chip" data-mode="vortex"><span class="ico">🌀</span><span>Girdob</span></button>
+        <button class="fx-chip" data-mode="giant"><span class="ico">⚔️</span><span>Ulkan qilich</span></button>
+      </div>
+      <div class="fx-row" id="themeRow">
+        <button class="fx-swatch active" data-theme="emerald" style="background:linear-gradient(135deg,#1aff7c,#ffe44d);color:#1aff7c" title="Zumrad"></button>
+        <button class="fx-swatch" data-theme="cyber" style="background:linear-gradient(135deg,#00e5ff,#8b5cf6);color:#00e5ff" title="Kiber"></button>
+        <button class="fx-swatch" data-theme="phoenix" style="background:linear-gradient(135deg,#ff4522,#ffd036);color:#ff4522" title="Olov"></button>
+        <button class="fx-swatch" data-theme="cosmos" style="background:linear-gradient(135deg,#e040fb,#38bdf8);color:#e040fb" title="Kosmos"></button>
+      </div>
+    </div>
+
+    <div class="fx-start" id="fxStart">
+      <div class="fx-start-card">
+        <div class="fx-start-emoji">🗡✨</div>
+        <h2>Qo‘l sehri — Samuray Qilichlari</h2>
+        <p>Kamerani yoqing va qo‘lingizni ko‘rsating: minglab uchuvchi qilichlar va sehrli aylanalar qo‘lingiz harakatiga qarab aylanadi!</p>
+        <ul class="fx-start-list">
+          <li>✊ <b>Musht:</b> Energiya shari va sehrli aylana</li>
+          <li>✋ <b>Ochiq kaft:</b> Qilichlar portlashi</li>
+          <li>☝️ <b>1 barmoq:</b> Qilichlar oqimi</li>
+          <li>✌️ <b>2 barmoq:</b> Samuray girdobi</li>
+          <li>🤟 <b>3+ barmoq:</b> Ulkan energiya qilichi</li>
+        </ul>
+        <button class="fx-big-btn" id="fxStartBtn">📷 Kamerani yoqish</button>
+        <div class="fx-start-err" id="fxStartErr"></div>
+        <div class="fx-start-note">Telefon va kompyuter kamerasida ishlaydi.</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { SwordScene, THEMES } from './fx/swords3d.js';
+    import {
+      createHands, startCamera, stopCamera, CoverMapper, HandSource,
+      HAND_CONNECTIONS, TIPS, fitCanvas, bootPage, bindChips, savePNG, toast
+    } from './fx/vision.js';
+
+    const stage = document.getElementById('fxStage');
+    const video = document.getElementById('fxVideo');
+    const c3d = document.getElementById('fx3d');
+    const c2d = document.getElementById('fx2d');
+    const gestureBadge = document.getElementById('gestureBadge');
+
+    const scene3d = new SwordScene(c3d);
+    let mapper = null;
+    let handSrc = null;
+    let activeMode = 'auto';
+    let currentTheme = 'emerald';
+    let running = false;
+    let lastT = performance.now();
+    const sparks = [];
+
+    const MODE_LABELS = {
+      sphere: '✊ Musht → Energiya shari',
+      expand: '✋ Ochiq kaft → Qilich portlashi',
+      stream: '☝️ 1 barmoq → Qilichlar oqimi',
+      vortex: '✌️ 2 barmoq → Samuray girdobi',
+      giant: '🤟 3 barmoq → Ulkan qilich',
+    };
+
+    function detectGestureMode(f) {
+      if (f.fist) return 'sphere';
+      if (f.count >= 4) return 'expand';
+      if (f.count === 1) return 'stream';
+      if (f.count === 2) return 'vortex';
+      return 'giant';
+    }
+
+    function spawnSparks(x, y, color, n = 3) {
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 20 + Math.random() * 75;
+        sparks.push({
+          x, y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp,
+          life: 0.4 + Math.random() * 0.45,
+          max: 0.85,
+          r: 1.5 + Math.random() * 2.5,
+          color,
+        });
+      }
+      if (sparks.length > 260) sparks.splice(0, sparks.length - 260);
+    }
+
+    function drawHandOverlay(ctx, hands, dt) {
+      const theme = THEMES[currentTheme] || THEMES.emerald;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+
+      for (const h of hands) {
+        ctx.strokeStyle = theme.primary + '88';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (const [a, b] of HAND_CONNECTIONS) {
+          ctx.moveTo(h.pts[a].x, h.pts[a].y);
+          ctx.lineTo(h.pts[b].x, h.pts[b].y);
+        }
+        ctx.stroke();
+
+        for (const idx of TIPS) {
+          const p = h.pts[idx];
+          ctx.fillStyle = theme.highlight;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+          if (Math.random() < 0.45) spawnSparks(p.x, p.y, theme.glow, 1);
+        }
+
+        // Palm energy ring
+        ctx.strokeStyle = theme.secondary + 'aa';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(h.center.x, h.center.y, Math.max(18, h.size * 0.35), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        s.life -= dt;
+        if (s.life <= 0) { sparks.splice(i, 1); continue; }
+        ctx.globalAlpha = Math.max(0, s.life / s.max);
+        ctx.fillStyle = s.color;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function loop(now) {
+      if (!running) return;
+      requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - lastT) / 1000);
+      lastT = now;
+      const t = now * 0.001;
+
+      if (mapper) mapper.update();
+      const { ctx, w, h } = fitCanvas(c2d);
+      ctx.clearRect(0, 0, w, h);
+
+      const hands = handSrc ? handSrc.update() : [];
+      let info = { has: false, x: w / 2, y: h / 2, w, h, scale: 0.9, mode: activeMode === 'auto' ? 'sphere' : activeMode };
+
+      if (hands.length > 0) {
+        const primary = hands[0];
+        const gMode = activeMode === 'auto' ? detectGestureMode(primary.f) : activeMode;
+        const scale = Math.min(1.6, Math.max(0.55, primary.size / (Math.min(w, h) * 0.22)));
+        info = { has: true, x: primary.center.x, y: primary.center.y, w, h, scale, mode: gMode };
+        gestureBadge.textContent = activeMode === 'auto' ? (MODE_LABELS[gMode] || '🪄 Avto') : `Rejim: ${gMode.toUpperCase()}`;
+        drawHandOverlay(ctx, hands, dt);
+      } else {
+        gestureBadge.textContent = '👋 Qo‘lingizni kameraga ko‘rsating';
+      }
+
+      scene3d.update(dt, t, info);
+    }
+
+    bindChips('modeRow', 'mode', (m) => {
+      activeMode = m;
+      toast(m === 'auto' ? '🪄 Avto ishora rejimi' : '✨ Rejim tanlandi');
+    });
+
+    bindChips('themeRow', 'theme', (th) => {
+      currentTheme = th;
+      scene3d.setTheme(th);
+    });
+
+    document.getElementById('fxSave').addEventListener('click', () => {
+      const out = document.createElement('canvas');
+      out.width = c3d.width || c2d.width;
+      out.height = c3d.height || c2d.height;
+      const ctx = out.getContext('2d');
+      ctx.fillStyle = '#060312';
+      ctx.fillRect(0, 0, out.width, out.height);
+      if (mapper && video.readyState >= 2) {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        const tmp = new CoverMapper(video, out, !video.classList.contains('no-mirror'));
+        tmp.drawVideo(ctx);
+        ctx.restore();
+      }
+      ctx.drawImage(c3d, 0, 0, out.width, out.height);
+      ctx.drawImage(c2d, 0, 0, out.width, out.height);
+      savePNG(out, 'qol-sehri.png');
+    });
+
+    bootPage({
+      onStart: async (facing, setStatus) => {
+        setStatus('Kamera ochilmoqda...');
+        await startCamera(video, facing);
+        video.classList.toggle('no-mirror', facing !== 'user');
+        mapper = new CoverMapper(video, stage, facing === 'user');
+        setStatus('AI model yuklanmoqda...');
+        const lm = await createHands(2);
+        handSrc = new HandSource(lm, video, mapper);
+        setStatus('Jonli ●', 'live');
+        running = true;
+        lastT = performance.now();
+        requestAnimationFrame(loop);
+      },
+      onFlip: async (facing) => {
+        stopCamera(video);
+        await startCamera(video, facing);
+        video.classList.toggle('no-mirror', facing !== 'user');
+        mapper = new CoverMapper(video, stage, facing === 'user');
+        if (handSrc) handSrc.mapper = mapper;
+      },
+    });
+  </script>
+</body>
+</html>

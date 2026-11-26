@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Havoda chizish — Barmoq bilan Neon Rasm</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="fx/fx.css?v=1" />
+  <script src="fx/nav.js?v=1"></script>
+</head>
+<body class="fx-page" data-section="air">
+  <div class="fx-stage" id="fxStage">
+    <video id="fxVideo" playsinline muted></video>
+    <canvas id="drawCanvas"></canvas>
+    <canvas id="fxCanvas"></canvas>
+
+    <div class="fx-hud">
+      <div class="fx-title">
+        <h1>✍️ Havoda chizish</h1>
+        <p>Ko‘rsatkich barmog‘ingizni chiqarib (yoki bosh barmoq bilan chimchilab) havoda rasm chizing!</p>
+      </div>
+      <div class="fx-hud-right">
+        <span class="fx-status" id="fxStatus">Tayyor</span>
+        <button class="fx-icon-btn" id="fxClear" title="Tozalash">🗑</button>
+        <button class="fx-icon-btn" id="fxFlip" title="Kamerani almashtirish">🔄</button>
+        <button class="fx-icon-btn" id="fxSave" title="Saqlash">💾</button>
+      </div>
+    </div>
+
+    <div class="fx-dock">
+      <div class="fx-gesture" id="gestureBadge">☝️ Faqat ko‘rsatkich barmoq = Chizish | ✋ Kaft = To‘xtatish | ✊ Musht = Tozalash</div>
+      <div class="fx-row" id="brushRow">
+        <button class="fx-chip active" data-brush="neon"><span class="ico">✨</span><span>Neon</span></button>
+        <button class="fx-chip" data-brush="fire"><span class="ico">🔥</span><span>Olov</span></button>
+        <button class="fx-chip" data-brush="rainbow"><span class="ico">🌈</span><span>Kamalak</span></button>
+        <button class="fx-chip" data-brush="lightning"><span class="ico">⚡</span><span>Chaqmoq</span></button>
+        <button class="fx-chip" data-brush="stars"><span class="ico">✦</span><span>Yulduzlar</span></button>
+      </div>
+      <div class="fx-row" id="colorRow">
+        <button class="fx-swatch active" data-color="#00f0ff" style="background:#00f0ff;color:#00f0ff"></button>
+        <button class="fx-swatch" data-color="#ff3df0" style="background:#ff3df0;color:#ff3df0"></button>
+        <button class="fx-swatch" data-color="#22ff88" style="background:#22ff88;color:#22ff88"></button>
+        <button class="fx-swatch" data-color="#ffb800" style="background:#ffb800;color:#ffb800"></button>
+        <button class="fx-swatch" data-color="#ff4d4d" style="background:#ff4d4d;color:#ff4d4d"></button>
+        <button class="fx-swatch" data-color="#ffffff" style="background:#ffffff;color:#ffffff"></button>
+      </div>
+    </div>
+
+    <div class="fx-start" id="fxStart">
+      <div class="fx-start-card">
+        <div class="fx-start-emoji">✍️✨</div>
+        <h2>Havoda chizish</h2>
+        <p>Qalam va qog‘oz kerak emas — kameraning oldida barmog‘ingizni harakatlantirib yorqin neon rasmlar chizing!</p>
+        <ul class="fx-start-list">
+          <li>☝️ <b>Ko‘rsatkich barmoq (yoki chimchilash):</b> Chizish</li>
+          <li>✋ <b>Ochiq kaft:</b> Chizishni pauza qilish</li>
+          <li>✊ <b>Musht (1 soniya):</b> Ekranni tozalash</li>
+        </ul>
+        <button class="fx-big-btn" id="fxStartBtn">📷 Kamerani yoqish</button>
+        <div class="fx-start-err" id="fxStartErr"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      createHands, startCamera, stopCamera, CoverMapper, HandSource,
+      fitCanvas, bootPage, bindChips, savePNG, toast
+    } from './fx/vision.js';
+
+    const stage = document.getElementById('fxStage');
+    const video = document.getElementById('fxVideo');
+    const drawCanvas = document.getElementById('drawCanvas');
+    const fxCanvas = document.getElementById('fxCanvas');
+    const badge = document.getElementById('gestureBadge');
+
+    let mapper = null;
+    let handSrc = null;
+    let brush = 'neon';
+    let color = '#00f0ff';
+    let running = false;
+    let prevPt = null;
+    let hue = 0;
+    let fistFrames = 0;
+    let lastT = performance.now();
+    const particles = [];
+
+    function clearDrawing() {
+      const { ctx, w, h } = fitCanvas(drawCanvas);
+      ctx.clearRect(0, 0, w, h);
+      prevPt = null;
+      toast('🗑 Tozalandi');
+    }
+
+    function addParticle(x, y, col, speed = 70) {
+      const a = Math.random() * Math.PI * 2;
+      const v = 15 + Math.random() * speed;
+      particles.push({
+        x, y,
+        vx: Math.cos(a) * v,
+        vy: Math.sin(a) * v - (brush === 'fire' ? 40 : 0),
+        life: 0.45 + Math.random() * 0.45,
+        max: 0.9,
+        r: 2 + Math.random() * 3.5,
+        col,
+      });
+      if (particles.length > 350) particles.splice(0, particles.length - 350);
+    }
+
+    function strokeSegment(ctx, a, b) {
+      hue = (hue + 4) % 360;
+      const strokeCol =
+        brush === 'rainbow' ? `hsl(${hue}, 95%, 62%)` :
+        brush === 'fire' ? `hsl(${15 + Math.random() * 30}, 100%, 58%)` :
+        color;
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (brush === 'lightning') {
+        ctx.shadowColor = strokeCol;
+        ctx.shadowBlur = 18;
+        ctx.strokeStyle = strokeCol;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        const mx = (a.x + b.x) / 2 + (Math.random() - 0.5) * 18;
+        const my = (a.y + b.y) / 2 + (Math.random() - 0.5) * 18;
+        ctx.lineTo(mx, my);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+      } else if (brush === 'stars') {
+        ctx.fillStyle = strokeCol;
+        ctx.shadowColor = strokeCol;
+        ctx.shadowBlur = 14;
+        const r = 3 + Math.random() * 5;
+        ctx.beginPath();
+        ctx.arc(b.x + (Math.random() - 0.5) * 10, b.y + (Math.random() - 0.5) * 10, r, 0, Math.PI * 2);
+        ctx.fill();
+        addParticle(b.x, b.y, strokeCol, 90);
+      } else {
+        ctx.shadowColor = strokeCol;
+        ctx.shadowBlur = brush === 'fire' ? 22 : 16;
+        ctx.strokeStyle = strokeCol;
+        ctx.lineWidth = brush === 'fire' ? 9 : 6.5;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+
+        if (brush === 'fire' || Math.random() < 0.35) {
+          addParticle(b.x, b.y, strokeCol, brush === 'fire' ? 60 : 40);
+        }
+      }
+      ctx.restore();
+    }
+
+    function loop(now) {
+      if (!running) return;
+      requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - lastT) / 1000);
+      lastT = now;
+
+      if (mapper) mapper.update();
+      const dInfo = fitCanvas(drawCanvas);
+      const fInfo = fitCanvas(fxCanvas);
+      const fctx = fInfo.ctx;
+      fctx.clearRect(0, 0, fInfo.w, fInfo.h);
+
+      const hands = handSrc ? handSrc.update() : [];
+      if (hands.length > 0) {
+        const h = hands[0];
+        const tip = h.pts[8];
+        const isDraw = (h.f.index && !h.f.middle && !h.f.ring) || h.f.pinch < 0.45;
+
+        if (h.f.fist) {
+          fistFrames++;
+          badge.textContent = `✊ Tozalash uchun ushlab turing... (${Math.min(100, Math.round(fistFrames / 28 * 100))}%)`;
+          if (fistFrames > 28) {
+            fistFrames = 0;
+            clearDrawing();
+          }
+          prevPt = null;
+        } else {
+          fistFrames = 0;
+          if (isDraw) {
+            badge.textContent = '✍️ Chizilmoqda...';
+            if (prevPt) {
+              const distMoved = Math.hypot(tip.x - prevPt.x, tip.y - prevPt.y);
+              if (distMoved < 140) strokeSegment(dInfo.ctx, prevPt, tip);
+            }
+            prevPt = { x: tip.x, y: tip.y };
+          } else {
+            badge.textContent = '✋ Pauza (chizish uchun ko‘rsatkich barmoqni chiqaring)';
+            prevPt = null;
+          }
+        }
+
+        // Draw cursor
+        fctx.save();
+        fctx.strokeStyle = isDraw ? '#ffffff' : 'rgba(255,255,255,0.5)';
+        fctx.lineWidth = 2.5;
+        fctx.beginPath();
+        fctx.arc(tip.x, tip.y, isDraw ? 9 : 13, 0, Math.PI * 2);
+        fctx.stroke();
+        if (isDraw) {
+          fctx.fillStyle = color;
+          fctx.beginPath();
+          fctx.arc(tip.x, tip.y, 4.5, 0, Math.PI * 2);
+          fctx.fill();
+        }
+        fctx.restore();
+      } else {
+        prevPt = null;
+        fistFrames = 0;
+        badge.textContent = '👋 Qo‘lingizni kameraga ko‘rsating';
+      }
+
+      // Update live particles
+      fctx.save();
+      fctx.globalCompositeOperation = 'lighter';
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        fctx.globalAlpha = Math.max(0, p.life / p.max);
+        fctx.fillStyle = p.col;
+        fctx.beginPath();
+        fctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        fctx.fill();
+      }
+      fctx.restore();
+    }
+
+    bindChips('brushRow', 'brush', (b) => { brush = b; });
+    bindChips('colorRow', 'color', (c) => { color = c; });
+    document.getElementById('fxClear').addEventListener('click', clearDrawing);
+
+    document.getElementById('fxSave').addEventListener('click', () => {
+      const out = document.createElement('canvas');
+      out.width = drawCanvas.width;
+      out.height = drawCanvas.height;
+      const ctx = out.getContext('2d');
+      ctx.fillStyle = '#05030b';
+      ctx.fillRect(0, 0, out.width, out.height);
+      if (mapper && video.readyState >= 2) {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        const tmp = new CoverMapper(video, out, !video.classList.contains('no-mirror'));
+        tmp.drawVideo(ctx);
+        ctx.restore();
+      }
+      ctx.drawImage(drawCanvas, 0, 0);
+      savePNG(out, 'havoda-chizish.png');
+    });
+
+    bootPage({
+      onStart: async (facing, setStatus) => {
+        setStatus('Kamera ochilmoqda...');
+        await startCamera(video, facing);
+        video.classList.toggle('no-mirror', facing !== 'user');
+        mapper = new CoverMapper(video, stage, facing === 'user');
+        setStatus('AI model yuklanmoqda...');
+        const lm = await createHands(1);
+        handSrc = new HandSource(lm, video, mapper);
+        setStatus('Jonli ●', 'live');
+        running = true;
+        lastT = performance.now();
+        requestAnimationFrame(loop);
+      },
+      onFlip: async (facing) => {
+        stopCamera(video);
+        await startCamera(video, facing);
+        video.classList.toggle('no-mirror', facing !== 'user');
+        mapper = new CoverMapper(video, stage, facing === 'user');
+        if (handSrc) handSrc.mapper = mapper;
+      },
+    });
+  </script>
+</body>
+</html>

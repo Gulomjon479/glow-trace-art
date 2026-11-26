@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Yuz sehri — Kiber Niqob &amp; Energiya Effektlari</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="fx/fx.css?v=1" />
+  <script src="fx/nav.js?v=1"></script>
+</head>
+<body class="fx-page" data-section="face">
+  <div class="fx-stage" id="fxStage">
+    <video id="fxVideo" playsinline muted></video>
+    <canvas id="fxCanvas"></canvas>
+
+    <div class="fx-hud">
+      <div class="fx-title">
+        <h1>🎭 Yuz sehri</h1>
+        <p>Yuzingizni kameraga tuting — og‘zingizni ochsangiz kuchli energiya effekti ishga tushadi!</p>
+      </div>
+      <div class="fx-hud-right">
+        <span class="fx-status" id="fxStatus">Tayyor</span>
+        <button class="fx-icon-btn" id="fxFlip" title="Kamerani almashtirish">🔄</button>
+        <button class="fx-icon-btn" id="fxSave" title="Saqlash">💾</button>
+      </div>
+    </div>
+
+    <div class="fx-dock">
+      <div class="fx-gesture" id="gestureBadge">😮 Og‘zingizni oching — maxsus kuch faollashadi!</div>
+      <div class="fx-row" id="modeRow">
+        <button class="fx-chip active" data-mode="cyber"><span class="ico">🤖</span><span>Kiber Niqob</span></button>
+        <button class="fx-chip" data-mode="laser"><span class="ico">⚡</span><span>Lazer Ko‘zlar</span></button>
+        <button class="fx-chip" data-mode="chakra"><span class="ico">🕉</span><span>Aura &amp; Toj</span></button>
+        <button class="fx-chip" data-mode="fire"><span class="ico">🔥</span><span>Olovli Kuch</span></button>
+        <button class="fx-chip" data-mode="star"><span class="ico">✨</span><span>Yulduzli Yuz</span></button>
+      </div>
+      <div class="fx-row" id="colorRow">
+        <button class="fx-swatch active" data-color="#00e5ff" style="background:#00e5ff;color:#00e5ff"></button>
+        <button class="fx-swatch" data-color="#ff3df0" style="background:#ff3df0;color:#ff3df0"></button>
+        <button class="fx-swatch" data-color="#22ff88" style="background:#22ff88;color:#22ff88"></button>
+        <button class="fx-swatch" data-color="#ff5522" style="background:#ff5522;color:#ff5522"></button>
+        <button class="fx-swatch" data-color="#ffd036" style="background:#ffd036;color:#ffd036"></button>
+      </div>
+    </div>
+
+    <div class="fx-start" id="fxStart">
+      <div class="fx-start-card">
+        <div class="fx-start-emoji">🎭⚡</div>
+        <h2>Yuz sehri — AR Effektlar</h2>
+        <p>Yuzingizning har bir nuqtasini real vaqtda aniqlab, kiber-niqob, lazer ko‘zlar va energiya tojini chizadi.</p>
+        <ul class="fx-start-list">
+          <li>🤖 <b>Kiber Niqob:</b> Futuristik skaner va ko‘z nishonlari</li>
+          <li>⚡ <b>Lazer Ko‘zlar:</b> Ko‘zlardan chaqmoq va nur oqimi</li>
+          <li>🔥 <b>Og‘izni ochish:</b> Olovli nafas va energiya portlashi</li>
+        </ul>
+        <button class="fx-big-btn" id="fxStartBtn">📷 Kamerani yoqish</button>
+        <div class="fx-start-err" id="fxStartErr"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      createFace, startCamera, stopCamera, CoverMapper,
+      fitCanvas, bootPage, bindChips, savePNG
+    } from './fx/vision.js';
+
+    const stage = document.getElementById('fxStage');
+    const video = document.getElementById('fxVideo');
+    const canvas = document.getElementById('fxCanvas');
+    const badge = document.getElementById('gestureBadge');
+
+    let mapper = null;
+    let faceLm = null;
+    let mode = 'cyber';
+    let color = '#00e5ff';
+    let running = false;
+    let lastVidT = -1;
+    let lastFace = null;
+    let lastT = performance.now();
+    const sparks = [];
+
+    const JAW = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109, 10];
+    const L_EYE = [33, 160, 158, 133, 153, 144, 33];
+    const R_EYE = [362, 385, 387, 263, 373, 380, 362];
+    const LIPS = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185, 61];
+
+    function poly(ctx, pts, idxList) {
+      ctx.beginPath();
+      idxList.forEach((id, i) => {
+        const p = pts[id];
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+    }
+
+    function addSpark(x, y, vx, vy, col, r = 3) {
+      sparks.push({ x, y, vx, vy, life: 0.55, max: 0.55, col, r });
+      if (sparks.length > 260) sparks.splice(0, sparks.length - 260);
+    }
+
+    function drawFaceEffects(ctx, pts, bs, t, dt) {
+      const lEye = pts[468] || pts[159];
+      const rEye = pts[473] || pts[386];
+      const forehead = pts[10];
+      const nose = pts[1];
+      const mouthTop = pts[13];
+      const mouthBot = pts[14];
+      const faceW = Math.hypot(pts[234].x - pts[454].x, pts[234].y - pts[454].y) || 160;
+      const mouthOpen = Math.hypot(mouthTop.x - mouthBot.x, mouthTop.y - mouthBot.y) / faceW;
+      const jawOpen = (bs && bs.jawOpen) || (mouthOpen * 3.5);
+      const energized = jawOpen > 0.25;
+
+      badge.textContent = energized ? '🔥 SUPER KUCH FAOLLASHDI!' : '😮 Og‘zingizni oching — super kuch faollashadi!';
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+
+      if (mode === 'cyber') {
+        ctx.strokeStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 1.8;
+        poly(ctx, pts, JAW);
+        poly(ctx, pts, L_EYE);
+        poly(ctx, pts, R_EYE);
+        poly(ctx, pts, LIPS);
+
+        // HUD targeting rings on eyes
+        [lEye, rEye].forEach((e, idx) => {
+          ctx.save();
+          ctx.translate(e.x, e.y);
+          ctx.rotate(t * (idx ? -2.2 : 2.2));
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(0, 0, faceW * 0.085, 0, Math.PI * 1.4);
+          ctx.stroke();
+          ctx.restore();
+        });
+      } else if (mode === 'laser') {
+        [lEye, rEye].forEach((e) => {
+          const grad = ctx.createRadialGradient(e.x, e.y, 2, e.x, e.y, faceW * (energized ? 0.45 : 0.22));
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(0.25, color);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, faceW * (energized ? 0.45 : 0.22), 0, Math.PI * 2);
+          ctx.fill();
+
+          if (energized) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(e.x, e.y);
+            ctx.lineTo(e.x + (Math.random() - 0.5) * 40, e.y + faceW * 1.2);
+            ctx.stroke();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        });
+      } else if (mode === 'chakra') {
+        // Rotating magic crown above forehead
+        const cx = forehead.x;
+        const cy = forehead.y - faceW * 0.18;
+        const R = faceW * 0.42;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(t * 0.9);
+        ctx.strokeStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 16;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, R, 0, Math.PI * 2);
+        ctx.stroke();
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * R, Math.sin(a) * R);
+          ctx.lineTo(Math.cos(a + Math.PI * 2 / 3) * R, Math.sin(a + Math.PI * 2 / 3) * R);
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (mode === 'fire') {
+        // Flame aura around crown & mouth breath
+        for (let i = 0; i < 4; i++) {
+          const p = pts[JAW[Math.floor(Math.random() * 10)]];
+          addSpark(p.x, p.y - 10, (Math.random() - 0.5) * 40, -70 - Math.random() * 80, '#ff6622', 4);
+        }
+        if (energized) {
+          const mx = (mouthTop.x + mouthBot.x) / 2;
+          const my = (mouthTop.y + mouthBot.y) / 2;
+          for (let i = 0; i < 6; i++) {
+            addSpark(mx, my, (Math.random() - 0.5) * 160, 40 + Math.random() * 140, '#ffaa22', 5);
+          }
+        }
+      } else if (mode === 'star') {
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        for (let i = 0; i < pts.length; i += 9) {
+          const p = pts[i];
+          const tw = 1.5 + Math.sin(t * 5 + i) * 1.2;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, Math.max(0.8, tw), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.strokeStyle = color + '66';
+        ctx.lineWidth = 1;
+        poly(ctx, pts, [10, 151, 9, 8, 168, 6, 197, 195, 5, 4, 1]);
+      }
+
+      // Sparks update
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        s.life -= dt;
+        if (s.life <= 0) { sparks.splice(i, 1); continue; }
+        ctx.globalAlpha = Math.max(0, s.life / s.max);
+        ctx.fillStyle = s.col;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function loop(now) {
+      if (!running) return;
+      requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - lastT) / 1000);
+      lastT = now;
+      const t = now * 0.001;
+
+      if (mapper) mapper.update();
+      const { ctx, w, h } = fitCanvas(canvas);
+      ctx.clearRect(0, 0, w, h);
+
+      if (faceLm && video.readyState >= 2 && video.currentTime !== lastVidT) {
+        lastVidT = video.currentTime;
+        try {
+          const res = faceLm.detectForVideo(video, now);
+          if (res.faceLandmarks && res.faceLandmarks[0]) {
+            const pts = mapper.mapAll(res.faceLandmarks[0]);
+            const bs = {};
+            if (res.faceBlendshapes && res.faceBlendshapes[0]) {
+              for (const c of res.faceBlendshapes[0].categories) bs[c.categoryName] = c.score;
+            }
+            lastFace = { pts, bs };
+          } else {
+            lastFace = null;
+          }
+        } catch (e) {}
+      }
+
+      if (lastFace) {
+        drawFaceEffects(ctx, lastFace.pts, lastFace.bs, t, dt);
+      } else {
+        badge.textContent = '🙂 Yuzingizni kameraga qarating';
+      }
+    }
+
+    bindChips('modeRow', 'mode', (m) => { mode = m; });
+    bindChips('colorRow', 'color', (c) => { color = c; });
+
+    document.getElementById('fxSave').addEventListener('click', () => {
+      const out = document.createElement('canvas');
+      out.width = canvas.width;
+      out.height = canvas.height;
+      const ctx = out.getContext('2d');
+      ctx.fillStyle = '#05030b';
+      ctx.fillRect(0, 0, out.width, out.height);
+      if (mapper && video.readyState >= 2) {
+        const tmp = new CoverMapper(video, out, !video.classList.contains('no-mirror'));
+        tmp.drawVideo(ctx);
+      }
+      ctx.drawImage(canvas, 0, 0);
+      savePNG(out, 'yuz-sehri.png');
+    });
+
+    bootPage({
+      onStart: async (facing, setStatus) => {
+        setStatus('Kamera ochilmoqda...');
+        await startCamera(video, facing);
+        video.classList.toggle('no-mirror', facing !== 'user');
+        mapper = new CoverMapper(video, stage, facing === 'user');
+        setStatus('AI model yuklanmoqda...');
+        faceLm = await createFace();
+        setStatus('Jonli ●', 'live');
+        running = true;
+        lastT = performance.now();
+        requestAnimationFrame(loop);
+      },
+      onFlip: async (facing) => {
+        stopCamera(video);
+        await startCamera(video, facing);
+        video.classList.toggle('no-mirror', facing !== 'user');
+        mapper = new CoverMapper(video, stage, facing === 'user');
+      },
+    });
+  </script>
+</body>
+</html>

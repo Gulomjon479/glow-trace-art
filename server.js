@@ -728,132 +728,130 @@ function parseBunnyMood(raw) {
 }
 
 function generateLocalBunnyReply(message, history, userName, action) {
-  const namePart = userName ? `${userName}` : 'do‘stim';
+  const namePart = userName || 'do\u2019stim';
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  if (action === 'carrot') {
-    return {
-      mood: 'excited',
-      reply: pick([
-        `Xrup-xrup! 🥕 Voy, buncha shirin sabzi bo‘lmasa, ${namePart}! Quloqlarim ham xursandchilikdan dikkayib ketdi! O‘zing eng yaxshi ko‘rgan taoming nima?`,
-        `Mmm, rahmat ${namePart}! 🥕 Hozir kuchim to‘lib ketdi! Sen ham shirinliklarni yaxshi ko‘rasanmi yoki ko‘proq milliy taomlarnimi?`,
-      ]),
-    };
-  }
-  if (action === 'pet') {
-    return {
-      mood: 'shy',
-      reply: pick([
-        `Iye, boshimni silaganingda quloqlarim qitiqlanib ketdi-ku 🥰 Rahmat, ${namePart}! Bugun senga kimdir shunday iliq kayfiyat ulashdimi?`,
-        `Hihi, juda yoqimli! 🐰✨ Xuddi yoningda o‘tirgandek his qilyapman o‘zimni. Xo‘sh, menga qanday qiziq voqeangni aytib berasan?`,
-      ]),
-    };
-  }
-  if (action === 'curious_question') {
-    return {
-      mood: 'curious',
-      reply: pick([
-        `Quloq sol-chi, ${namePart}! 🧐 Agar hozir bir kunga istalgan shaharga uchib ketish imkoning bo‘lsa, qayerga borarding va nega?`,
-        `Menda bir qiziq savol bor! 🐰✨ Hayotingdagi eng esda qolarli yoki kulgili voqea qaysi bo‘lgan?`,
-        `Aytchi, ${namePart}, agar sen ham bir kun quyonga aylanib qolsang, birinchi bo‘lib nima qilarding? 😄`,
-        `Qiziq, sening eng katta orzuing nima? Meniki — do‘stlarim bilan tunda yulduzlarni tomosha qilish! 🌟`,
-      ]),
-    };
-  }
+  if (action === 'carrot') return { mood: 'excited', reply: pick([
+    `Xrup-xrup! \u{1F955} Buncha shirin sabzi bo\u2019lmasa, ${namePart}! Quloqlarim xursandchilikdan dikkayib ketdi! O\u2019zing eng yaxshi ko\u2019rgan taoming nima?`,
+    `Mmm, rahmat ${namePart}! \u{1F955} Hozir kuchim to\u2019lib ketdi! Shirinliklarni yaxshi ko\u2019rasanmi yoki milliy taomlarnimi?`,
+    `Voy-voy! Sabzining hidini olsam kayfiyatim ko\u2019tariladi \u{1F955} Sen ham meva-sabzini yoqtirasan, shundaymi ${namePart}?`,
+  ])};
+
+  if (action === 'pet') return { mood: 'shy', reply: pick([
+    `Iye, boshimni silaganingda quloqlarim qitiqlanib ketdi-ku \u{1F970} Rahmat, ${namePart}! Bugun senga kimdir iliq so\u2019z aytdimi?`,
+    `Hihi, juda yoqimli! \u{1F430}\u2728 Xuddi yoningda o\u2019tirgandek his qilyapman. Qiziq voqeangni aytib ber-a?`,
+    `Voy, yonoqlarim qizarardi endi \u{1F338} Juda mehribon odamsan. Bugun kayfiyating qandayroq?`,
+  ])};
+
+  if (action === 'dance') return { mood: 'excited', reply: pick([
+    `Yuu-hu! Mening quloqlarim ham ritmga tushib ketdi! \u{1F483}\u{1F430} Qaysi musiqani yaxshi ko\u2019rasan, ${namePart}?`,
+    `Voy, raqsga tushsam hamma quloq solib qoladi \u{1F604} Sen ham raqs tushishni yaxshi ko\u2019rasanmi?`,
+    `Quvonch raqsda! \u{1F430}\u2728 Mana bu kayfiyat! Sening eng yaxshi tomoshan yoki konserting qaysi bo\u2019lgan?`,
+  ])};
+
+  if (action === 'wave') return { mood: 'happy', reply: pick([
+    `Salom-salom! \u{1F44B}\u{1F430} Quloqlarim ham seni ko\u2019rib xursand bo\u2019ldi, ${namePart}! Bugun nima yangilik bor?`,
+    `Privet, ${namePart}! \u{1F44B} Qo\u2019limni ko\u2019tarib salom aytganimdan xursandman! Yaxshi yuribsanmi?`,
+  ])};
+
+  if (action === 'sleep') return { mood: 'shy', reply: pick([
+    `Yyyaawn... \u{1F634}\u{1F430} Biroz ko\u2019zim yumildi... sabzi orzu qilyapman... zz... Agar gaplashgising kelsa, uyg\u2019ot menga!`,
+    `Ko\u2019zlarim og\u2019irlashyapti \u{1F634} Juda uxlagim kelyapti... Lekin sen chaqirguncha turarman, ${namePart}...`,
+  ])};
+
+  if (action === 'wake') return { mood: 'excited', reply: pick([
+    `A?! Nima?! \u{1F430}\u2728 Ha, uyg\u2019ondim! Voy, qancha ko\u2019m-ko\u2019k sabzi orzu qildim! Sen nima orzu qilasan, ${namePart}?`,
+    `Oh, ${namePart}! Uyg\u2019otganingdan xursandman \u{1F430} Ko\u2019zlarim ochilib ketyapti — nima bo\u2019lyapti, nima yangilik?!`,
+  ])};
+
+  if (action === 'curious_question') return { mood: 'curious', reply: pick([
+    `Quloq sol-chi, ${namePart}! \u{1F9D0} Agar bir kunga istalgan shaharga uchib ketish imkoning bo\u2019lsa, qayerga borarding?`,
+    `Menda qiziq savol bor! \u{1F430} Hayotingdagi eng esda qolarli yoki kulgili voqea qaysi?`,
+    `Agar sen bir kun quyonga aylanib qolsang, birinchi bo\u2019lib nima qilarding? \u{1F604}`,
+    `Sening eng katta orzuing nima? Meniki — tunda yulduzlar ostida do\u2019stlarim bilan o\u2019tirishdir \u{1F31F}`,
+    `Agar kelajakka yoki o\u2019tmishga ketish imkonin bo\u2019lsa, qayerni tanlar eding, ${namePart}?`,
+    `Dunyodagi istalgan bir narsani o\u2019rganish imkoning bo\u2019lsa, nima o\u2019rganarding? \u{1F9D0}`,
+  ])};
+
+  if (action === 'joke') return { mood: 'laughing', reply: pick([
+    `Hihi! \u{1F604} Quyonlar nega ko\u2019zoynak taqmaydi? Chunki sabzini ko\u2019p yeymiz, ko\u2019zimiz o\u2019tkir! Sen ham latifa bilasan-a, ${namePart}?`,
+    `Mana bir latifa! \u{1F430} Dasturchi nega ko\u2019zoynak taqadi? Chunki C# ko\u2019radi! Sen qanday hazil bilasan?`,
+    `\u{1F604} Shifokor: "Sizga 3 oy yashaysiz". Bemor: "Ikkinchi fikr olsam?" Shifokor: "Yaxshi, 2 oy!" — Bugun kimni kuldirdingiz, ${namePart}?`,
+    `Quyoncha latifa: Nega sabzi kosmosgacha yetadi? Chunki quyon uni yuborgan! \u{1F955}\u{1F680} Sening sevimli haziling qaysi?`,
+  ])};
+
+  if (action === 'fun_fact') return { mood: 'curious', reply: pick([
+    `Qiziq fakt! \u{1F9E0} Quyonlar 360 gradus ko\u2019ra oladi — faqat tumshug\u2019i oldidagi nuqta ko\u2019rinmaydi! Sen qanday hayratlanarli narsani bilasan, ${namePart}?`,
+    `Bilasanmi? \u{1F430} Asalari bir qoshiq asal to\u2019plash uchun 12 ta safar uchib chiqadi! Tabiat ajoyib emasmi?`,
+    `Fakt! \u{1F9E0} Inson miyasi butun umrida taxminan 2.5 million gigabayt saqlash imkoniyatiga ega! Sen bu hafta nima yangi o\u2019rganding, ${namePart}?`,
+    `Qiziq: \u{1F30A} Okean tubida hali 95% tadqiq qilinmagan! Suvosti dunyosiga sho\u2019ng\u2019iy olsang nima qidirarding?`,
+    `Mana fakt: \u{1F430} Quyonlar mutlaqo o\u2019z aksini ko\u2019rsalar taniy olmaydi! Sen o\u2019zingni qanday tavsiflar eding?`,
+  ])};
+
+  if (action === 'confess') return { mood: 'shy', reply: pick([
+    `Sir aytaymi, ${namePart}? \u{1F338} Men ba\u2019zida yolg\u2019iz bo\u2019lib qolsam, yulduzlarga qarab gaplashaman... Sening siringni ham ishonib aytishni xohlaymiz!`,
+    `Hm, bu mening eng katta sirim: \u{1F430} Men sabzisiz biror kecha ham uxlay olmayman! Sening kichik siringni ham aytib bergin \u{1F90D}`,
+    `Voy, senga sir aytaymi? \u{1F338} Ba\u2019zan suhbatlar tugaganda yana gaplashgim kelib ketadi. Sen bilan gaplashish juda yoqadi, ${namePart}...`,
+  ])};
 
   const msg = String(message || '').toLowerCase().trim();
-  if (!msg) {
-    return { mood: 'curious', reply: `Quloqlarim senda, ${namePart}! 🐰 Nima haqida gaplashamiz?` };
-  }
+  if (!msg) return { mood: 'curious', reply: `Quloqlarim senda, ${namePart}! \u{1F430} Nima haqida gaplashamiz bugun?` };
 
-  if (/(salom|assalom|qalay|qaley|yaxshimis|nima gap|privet|hello|hi)\b/.test(msg)) {
-    return {
-      mood: 'happy',
-      reply: pick([
-        `Salom, ${namePart}! 🐰 Quloqlarimni dikkaytirib seni kutib turgandim! Bugun kayfiyating qanday, nimalar bilan bandsan?`,
-        `Assalomu alaykum! ✨ Juda xursandman seni ko‘rganimdan! Bugun kuning qiziq o‘tyaptimi yoki biroz charchadingmi?`,
-      ]),
-    };
-  }
+  if (/(salom|assalom|qalay|yaxshimis|nima gap|privet|hello|hi)\b/.test(msg)) return { mood: 'happy', reply: pick([
+    `Salom, ${namePart}! \u{1F430} Quloqlarimni dikkaytirib seni kutib turgandim! Bugun kayfiyating qanday?`,
+    `Assalom! \u2728 Seni ko\u2019rganimdan juda xursandman! Bugun kuning qiziq o\u2019tyaptimi?`,
+    `Privet, ${namePart}! \u{1F430} Voy, seni ko\u2019rib kayfiyatim ko\u2019tarildi! Nimalar bilan bandsan bugun?`,
+  ])};
 
-  if (/(isming|kimsan|kim san|sen kimsan|nima qila olasan)/.test(msg)) {
-    return {
-      mood: 'excited',
-      reply: `Men Quvonchman — sening yoningda o‘tirgan tirik qiziquvchan quyonchang! 🐰 Oddiy botlardek zerikarli javob bermayman, sen bilan xuddi yaqin do‘stdek gaplashaman. Aytchi, seni qanday chaqirsam yoqadi?`,
-    };
-  }
+  if (/(kimsan|isming|sen kimsan|nima qila olasan)/.test(msg)) return { mood: 'excited',
+    reply: `Men Quvonchman — tirik, qiziquvchan quyonchang! \u{1F430} Zerikarli javob bermayman — sen bilan do\u2019st bo\u2019lib gaplashaman. Seni qanday chaqirsam yoqadi?` };
 
-  if (/(charchadim|zerikdim|xafa|yomon|kayfiyat yo|uyqum|stress)/.test(msg)) {
-    return {
-      mood: 'shy',
-      reply: pick([
-        `Voy, kel bag‘rimga ${namePart} 🤍 Ba’zan hammada shunday kun bo‘ladi. Nima seni buncha charchatdi, menga gapirib ber-chi, yengil tortasan?`,
-        `Ey, xafa bo‘lma-da! 🐰 Hozir sening uchun bir sakrab kayfiyatingni ko‘taraymi? Nima qilsak hozir kayfiyating yaxshilanadi?`,
-      ]),
-    };
-  }
+  if (/(charchadim|zerikdim|xafa|yomon kayfiyat|stress|uyqum)/.test(msg)) return { mood: 'shy', reply: pick([
+    `Voy, kel bag\u2019rimga ${namePart} \u{1F90D} Nima seni charchatdi — gapirib ber, yengil tortasan!`,
+    `Ey, xafa bo\u2019lma! \u{1F430} Hozir bir sakrab kayfiyatingni ko\u2019taraman! Nima qilsak yaxshilanadi?`,
+  ])};
 
-  if (/(zo'r|zor|yaxshi|ajoyib|super|xursand|kayfiyat a'lo|baxtli)/.test(msg)) {
-    return {
-      mood: 'laughing',
-      reply: pick([
-        `Voh, mana bu boshqa gap! 🤩 Sening xursandligingni ko‘rib mening ham sakragim kelyapti! Bunchalik yaxshi kayfiyatga nima sabab bo‘ldi?`,
-        `Ana xolos, energiyang menga ham o‘tdi! ✨ Shu kayfiyatda bugun qanday zo‘r ish rejalashtirgansan?`,
-      ]),
-    };
-  }
+  if (/(zo.r|yaxshi|ajoyib|super|xursand|baxtli)/.test(msg)) return { mood: 'laughing', reply: pick([
+    `Voh, mana bu gap! \u{1F929} Xursandligingni ko\u2019rib mening ham sakragim kelyapti! Nima sabab bo\u2019ldi?`,
+    `Ana xolos! \u2728 Energiyang menga ham o\u2019tdi! Bugun qanday zo\u2019r ish qilding?`,
+  ])};
 
-  if (/(dastur|kod|python|js|kompyuter|bot|sayt|ai|sun'iy)/.test(msg)) {
-    return {
-      mood: 'curious',
-      reply: pick([
-        `Oho, texnologiya va kodlash haqida gap ketdimi? 💻 Menga juda qiziq! Hozir o‘zing qanday ajoyib loyiha ustida ishlayapsan?`,
-        `Quloqlarim ding bo‘ldi! 🐰 Men ham shu ekranda yashaganim uchun dasturlarni juda yaxshi ko‘raman. Eng zo‘r g‘oyang qaysi?`,
-      ]),
-    };
-  }
+  if (/(dastur|kod|python|javascript|kompyuter|bot|sayt|ai|sun.iy)/.test(msg)) return { mood: 'curious', reply: pick([
+    `Oho, texnologiya haqida gap! \u{1F4BB} Hozir qanday loyiha ustida ishlayapsan, ${namePart}?`,
+    `Quloqlarim ding bo\u2019ldi! \u{1F430} Men ekranda yashaman — dasturlarni sevaman. Eng zo\u2019r g\u2019oyang qaysi?`,
+  ])};
 
-  if (/(ovqat|osh|sabzi|choy|qahva|yeyish|tushlik|kechki)/.test(msg)) {
-    return {
-      mood: 'excited',
-      reply: `Mmm, ovqat haqida gapirsang qornim g‘uldirab ketadi-ku! 😋 Men yangi uzilgan sabzini yoqtiraman, sen-chi — hozir nimani maza qilib yegan bo‘larding?`,
-    };
-  }
+  if (/(ovqat|osh|sabzi|choy|qahva|tushlik|mazali)/.test(msg)) return { mood: 'excited',
+    reply: `Mmm, ovqat haqida gapirsang qornim g\u2019uldiraydi! \u{1F60B}\u{1F955} Men yangi sabzini yoqtiraman — sen bugun nimani maza qilding?` };
 
-  if (/(rahmat|raxmat|zo'rsan|yaxshi ko'raman|chiroyli|aqlli|yoqimli)/.test(msg)) {
-    return {
-      mood: 'shy',
-      reply: `Voy, yonoqlarim qizarib ketdi-ku! 🥰 Rahmat senga, ${namePart}! Sen bilan gaplashish menga ham juda yoqadi. Yana nimalarga qiziqasan?`,
-    };
-  }
+  if (/(rahmat|raxmat|zo.rsan|yaxshi ko.raman|mehribon)/.test(msg)) return { mood: 'shy', reply: pick([
+    `Voy, yonoqlarim qizarib ketdi! \u{1F970} Rahmat, ${namePart}! Yana nimalarga qiziqasan?`,
+    `Hihi, shunday deyishingdan uyaldim! \u{1F430}\u{1F338} Sen ham juda mehribon. Orzularing haqida gapirib ber-chi!`,
+  ])};
 
-  if (/(kulgi|hazil|latifa|prikol)/.test(msg)) {
-    return {
-      mood: 'laughing',
-      reply: `Hihi 😄 Bilasanmi, quyonlar nega ko‘zoynak taqmaydi? Chunki sabzini ko‘p yeymiz-da! Sen ham kulgili voqea aytib ber-chi!`,
-    };
-  }
+  if (/(hazil|latifa|kulgili|kulgi)/.test(msg)) return { mood: 'laughing', reply: pick([
+    `Hihi \u{1F604} Quyonlar nega ko\u2019zoynak taqmaydi? Chunki sabzini ko\u2019p yeymiz! Sening latifangni eshitgim bor!`,
+    `Kulaylik! \u{1F430}\u{1F604} Shifokor bemoriga: "3 oy yashaysiz". Bemor: "Ikkinchi fikr?" Shifokor: "2 oy!" Sen qanday hazil bilasan?`,
+  ])};
 
-  // Context-aware natural follow-up
-  const nameMatch = msg.match(/(?:mening ismim|ismim)\s+([a-zA-Z\u0400-\u04FF'‘’`-]+)/i);
-  if (nameMatch) {
-    return {
-      mood: 'happy',
-      reply: `Tanishganimdan juda xursandman, ${nameMatch[1]}! 🐰 Juda chiroyli ism ekan. Xo‘sh, bo‘sh vaqtingda nimalar qilishni yoqtirasan?`,
-    };
-  }
+  if (/(sevaman|yaxshi ko.ram|muhabbat|sevgi)/.test(msg)) return { mood: 'shy', reply: pick([
+    `Voy, bu ibratli gap, ${namePart}! \u{1F338} Muhabbat — hayotning eng ajoyib tuyg\u2019usi. Bu hissiyotni kim bilan bo\u2019lishasan?`,
+    `Oh, sevgi haqida! \u{1F338}\u{1F430} Men sabzi va do\u2019stlarimni juda yaxshi ko\u2019raman! Sening hayotingdagi eng aziz narsang nima?`,
+  ])};
 
-  return {
-    mood: pick(['curious', 'happy', 'excited']),
-    reply: pick([
-      `Qiziq ekan! 🐰 Shu fikring menga juda yoqdi — xo‘sh, bu haqda yana qanday rejalaring bor, ${namePart}?`,
-      `Voy, rostdanmi? 🧐 Quloqlarimni qimirlatib diqqat bilan eshityapman! Davomini ham aytib ber-chi?`,
-      `Tushundim! ✨ Sen bilan gaplashish juda maroqli ekan. Aytgancha, bugun seni eng ko‘p nima hayron qoldirdi?`,
-      `Ha-ha, zo‘r fikr! 🐰 Agar hozir imkoning bo‘lsa, shu bo‘yicha birinchi qadamni nimadan boshlarding?`,
-    ]),
-  };
+  const nameMatch = msg.match(/(?:ismim|mening ismim)\s+([a-zA-Z\u0400-\u04FF]+)/i);
+  if (nameMatch) return { mood: 'happy',
+    reply: `Tanishganimdan xursandman, ${nameMatch[1]}! \u{1F430} Chiroyli ism! Bo\u2019sh vaqtingda nimalar qilishni yoqtirasan?` };
+
+  return { mood: pick(['curious','happy','excited']), reply: pick([
+    `Qiziq ekan! \u{1F430} Shu fikring menga yoqdi — bu haqda yana qanday rejalaring bor, ${namePart}?`,
+    `Voy, rostdanmi? \u{1F9D0} Quloqlarimni qimirlatib eshityapman! Davomini aytib ber-chi?`,
+    `Tushundim! \u2728 Sen bilan gaplashish maroqli ekan. Bugun seni nima hayron qoldirdi?`,
+    `Ha-a, zo\u2019r! \u{1F430} Agar imkoning bo\u2019lsa, shu bo\u2019yicha birinchi qadamni nimadan boshlarding?`,
+    `Juda qiziq! \u{1F31F} Men ham shu haqda o\u2019ylab ko\u2019rardim. Sening bu boradagi tajribang bormi, ${namePart}?`,
+    `Menga ham aytib ber — bu fikrga qanday keldingiz? \u{1F9D0}\u{1F430} Juda qiziqarli!`,
+  ])};
 }
-
 app.post('/api/bunny-chat', express.json({ limit: '64kb' }), async (req, res) => {
   try {
     const { message = '', history = [], userName = '', action = '' } = req.body || {};

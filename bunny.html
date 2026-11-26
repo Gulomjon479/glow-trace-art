@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Jonli Quyon — Suhbatdosh AI Do‘st</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="fx/fx.css?v=1" />
+  <script src="fx/nav.js?v=1"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
+      }
+    }
+  </script>
+  <style>
+    body.bunny-page {
+      margin: 0;
+      min-height: 100dvh;
+      background: radial-gradient(circle at 30% 25%, #1d1238 0%, #090614 65%, #04030a 100%);
+      color: #eef2ff;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    .bunny-shell {
+      flex: 1;
+      width: 100%;
+      max-width: 1020px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 18px;
+      align-items: center;
+      box-sizing: border-box;
+    }
+    .bunny-stage-card {
+      position: relative;
+      width: 100%;
+      height: 460px;
+      border-radius: 24px;
+      background: radial-gradient(circle at 50% 42%, rgba(139, 92, 246, 0.22), rgba(15, 11, 30, 0.85) 72%);
+      border: 1px solid rgba(190, 200, 255, 0.18);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 0 40px rgba(167, 139, 250, 0.1);
+      overflow: hidden;
+      cursor: pointer;
+    }
+    #bunnyCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .bunny-top-pill {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+    .bunny-name-badge {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(10, 8, 22, 0.72);
+      border: 1px solid rgba(190, 200, 255, 0.22);
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .bunny-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 8px #4ade80;
+    }
+    .bunny-voice-btn {
+      pointer-events: auto;
+      border: 1px solid rgba(190, 200, 255, 0.25);
+      background: rgba(10, 8, 22, 0.75);
+      color: #fff;
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .bunny-actions-bar {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .bunny-act-btn {
+      border: 1px solid rgba(200, 210, 255, 0.22);
+      background: rgba(14, 11, 28, 0.8);
+      color: #eef2ff;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.2s;
+    }
+    .bunny-act-btn:hover { border-color: rgba(216, 180, 254, 0.65); }
+    .bunny-act-btn:active { transform: scale(0.95); }
+
+    /* Chat panel */
+    .bunny-chat-card {
+      height: 460px;
+      border-radius: 24px;
+      background: rgba(14, 11, 28, 0.84);
+      border: 1px solid rgba(190, 200, 255, 0.16);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+    .bunny-chat-head {
+      padding: 13px 16px;
+      border-bottom: 1px solid rgba(190, 200, 255, 0.12);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .bunny-chat-head h2 { margin: 0; font-size: 15px; }
+    .bunny-mood-tag {
+      font-size: 12px;
+      color: #c4b5fd;
+      background: rgba(139, 92, 246, 0.16);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+    .bunny-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .b-msg {
+      max-width: 84%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.48;
+      animation: popIn 0.22s ease;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .b-msg.bunny {
+      align-self: flex-start;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.24), rgba(59, 130, 246, 0.18));
+      border: 1px solid rgba(196, 181, 253, 0.25);
+      border-bottom-left-radius: 4px;
+    }
+    .b-msg.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, rgba(236, 72, 153, 0.28), rgba(168, 85, 247, 0.28));
+      border: 1px solid rgba(244, 114, 182, 0.28);
+      border-bottom-right-radius: 4px;
+    }
+    .bunny-input-row {
+      padding: 10px 12px;
+      border-top: 1px solid rgba(190, 200, 255, 0.12);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: rgba(8, 6, 18, 0.65);
+    }
+    .bunny-input-row input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(190, 200, 255, 0.2);
+      border-radius: 14px;
+      padding: 10px 13px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    .bunny-input-row input:focus { border-color: rgba(196, 181, 253, 0.65); }
+    .bunny-send-btn, .bunny-mic-btn {
+      border: none;
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    }
+    .bunny-mic-btn {
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(190, 200, 255, 0.22);
+      padding: 10px 12px;
+    }
+    .bunny-mic-btn.listening {
+      background: rgba(239, 68, 68, 0.45);
+      border-color: #f87171;
+    }
+
+    @media (max-width: 860px) {
+      .bunny-shell {
+        grid-template-columns: 1fr;
+        padding: 10px;
+        gap: 10px;
+      }
+      .bunny-stage-card { height: 290px; }
+      .bunny-chat-card { height: calc(100dvh - var(--nav-h) - 330px); min-height: 260px; }
+    }
+  </style>
+</head>
+<body class="bunny-page" data-section="bunny">
+  <div class="bunny-shell">
+    <div class="bunny-stage-card" id="bunnyStage" title="Quvonchni erkalash uchun bosing">
+      <canvas id="bunnyCanvas"></canvas>
+      <div class="bunny-top-pill">
+        <span class="bunny-name-badge"><span class="bunny-dot"></span>Quvonch (Jonli Quyon)</span>
+        <button class="bunny-voice-btn" id="voiceToggleBtn" type="button">🔊 Ovoz: Yoqilgan</button>
+      </div>
+      <div class="bunny-actions-bar">
+        <button class="bunny-act-btn" id="carrotBtn" type="button">🥕 Sabzi berish</button>
+        <button class="bunny-act-btn" id="petBtn" type="button">🤍 Erkalash</button>
+        <button class="bunny-act-btn" id="askMeBtn" type="button">🎲 Qiziq savol</button>
+      </div>
+    </div>
+
+    <div class="bunny-chat-card">
+      <div class="bunny-chat-head">
+        <h2>💬 Quvonch bilan jonli suhbat</h2>
+        <span class="bunny-mood-tag" id="moodTag">✨ Quvnoq</span>
+      </div>
+      <div class="bunny-messages" id="chatBox"></div>
+      <form class="bunny-input-row" id="chatForm">
+        <button class="bunny-mic-btn" id="micBtn" type="button" title="Ovoz bilan gapirish">🎤</button>
+        <input id="chatInput" type="text" placeholder="Quvonchga biror narsa yozing..." autocomplete="off" />
+        <button class="bunny-send-btn" type="submit">Yuborish</button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Bunny3D } from './fx/bunny3d.js';
+
+    try {
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) { tg.ready(); tg.expand(); }
+    } catch (e) {}
+
+    const canvas = document.getElementById('bunnyCanvas');
+    const stage = document.getElementById('bunnyStage');
+    const chatBox = document.getElementById('chatBox');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const moodTag = document.getElementById('moodTag');
+    const voiceBtn = document.getElementById('voiceToggleBtn');
+    const micBtn = document.getElementById('micBtn');
+
+    const bunny = new Bunny3D(canvas);
+    let voiceOn = true;
+    const history = [];
+    const tgUser = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) || {};
+    const userName = tgUser.first_name || '';
+
+    const MOOD_LABELS = {
+      happy: '✨ Quvnoq',
+      curious: '🧐 Qiziquvchan',
+      excited: '🤩 Hayajonda',
+      laughing: '😄 Kulmoqda',
+      shy: '🥰 Uyatchan',
+      thinking: '🤔 O‘ylanmoqda',
+    };
+
+    // Eye & head tracking
+    const onPointer = (cx, cy) => {
+      const r = stage.getBoundingClientRect();
+      const nx = ((cx - r.left) / r.width - 0.5) * 2;
+      const ny = ((cy - r.top) / r.height - 0.5) * 2;
+      bunny.setLook(nx, ny);
+    };
+    window.addEventListener('pointermove', (e) => onPointer(e.clientX, e.clientY));
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches[0]) onPointer(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    let lastT = performance.now();
+    function loop(now) {
+      requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - lastT) / 1000);
+      lastT = now;
+      bunny.update(dt, now * 0.001);
+    }
+    requestAnimationFrame(loop);
+
+    function speakText(text) {
+      bunny.speaking = true;
+      const clean = text.replace(/[\u{1F300}-\u{1FAFF}]/gu, '').trim();
+      const fallbackMs = Math.min(4200, Math.max(1100, clean.length * 48));
+
+      if (voiceOn && 'speechSynthesis' in window && clean) {
+        try {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(clean);
+          u.lang = 'uz-UZ';
+          u.pitch = 1.28;
+          u.rate = 1.05;
+          u.onend = () => { bunny.speaking = false; };
+          u.onerror = () => { bunny.speaking = false; };
+          window.speechSynthesis.speak(u);
+          setTimeout(() => { bunny.speaking = false; }, fallbackMs + 1500);
+          return;
+        } catch (e) {}
+      }
+      setTimeout(() => { bunny.speaking = false; }, fallbackMs);
+    }
+
+    function addMsg(who, text) {
+      const div = document.createElement('div');
+      div.className = 'b-msg ' + who;
+      div.textContent = text;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function sendToBunny(message, action = '') {
+      if (message) {
+        addMsg('user', message);
+        history.push({ role: 'user', text: message });
+      }
+      bunny.setMood('thinking');
+      moodTag.textContent = MOOD_LABELS.thinking;
+
+      try {
+        const resp = await fetch('/api/bunny-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, action, history: history.slice(-10), userName }),
+        });
+        const data = await resp.json();
+        const reply = data.reply || 'Voy, quloqlarim qimirlab ketdi! Yana bir marta aytib ko‘ringchi? 🐰';
+        const mood = data.mood || 'happy';
+        bunny.setMood(mood);
+        moodTag.textContent = MOOD_LABELS[mood] || MOOD_LABELS.happy;
+        addMsg('bunny', reply);
+        history.push({ role: 'bunny', text: reply });
+        speakText(reply);
+      } catch (e) {
+        bunny.setMood('curious');
+        addMsg('bunny', 'Voy, internetim biroz uzilib qoldi shekilli — yana yozib ko‘ring! 🐰');
+      }
+    }
+
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const txt = chatInput.value.trim();
+      if (!txt) return;
+      chatInput.value = '';
+      sendToBunny(txt);
+    });
+
+    document.getElementById('carrotBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      bunny.triggerCarrot();
+      sendToBunny('', 'carrot');
+    });
+
+    document.getElementById('petBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      bunny.triggerHop();
+      sendToBunny('', 'pet');
+    });
+
+    document.getElementById('askMeBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      sendToBunny('', 'curious_question');
+    });
+
+    canvas.addEventListener('click', () => {
+      bunny.triggerHop();
+      sendToBunny('', 'pet');
+    });
+
+    voiceBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      voiceOn = !voiceOn;
+      voiceBtn.textContent = voiceOn ? '🔊 Ovoz: Yoqilgan' : '🔇 Ovoz: O‘chiq';
+      if (!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    });
+
+    // Optional Voice Input (SpeechRecognition)
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SR) {
+      const rec = new SR();
+      rec.lang = 'uz-UZ';
+      rec.interimResults = false;
+      micBtn.addEventListener('click', () => {
+        try {
+          micBtn.classList.add('listening');
+          rec.start();
+        } catch (e) {
+          micBtn.classList.remove('listening');
+        }
+      });
+      rec.onresult = (ev) => {
+        micBtn.classList.remove('listening');
+        const spoken = ev.results[0] && ev.results[0][0] && ev.results[0][0].transcript;
+        if (spoken) sendToBunny(spoken);
+      };
+      rec.onerror = () => micBtn.classList.remove('listening');
+      rec.onend = () => micBtn.classList.remove('listening');
+    } else {
+      micBtn.style.display = 'none';
+    }
+
+    // Initial greeting
+    const hello = userName
+      ? `Salom, ${userName}! 🐰 Men Quvonchman — xuddi yoningda o‘tirgandek sening bilan suhbatlashishni juda yaxshi ko‘raman! Bugun kayfiyating qanday, nimalar bilan bandsan?`
+      : `Salom! 🐰 Men Quvonchman — oddiy bot emas, sening bilan qiziqib suhbatlashadigan jonli quyonchanman! Isming nima, bugun kuning qanday o‘tyapti?`;
+    addMsg('bunny', hello);
+    history.push({ role: 'bunny', text: hello });
+  </script>
+</body>
+</html>

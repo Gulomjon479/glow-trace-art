@@ -708,6 +708,212 @@ app.post('/api/convert-mp4', upload.single('video'), async (req, res) => {
   }
 });
 
+// ==================== JONLI QUYON (AI SUHBATDOSH) ====================
+const BUNNY_SYSTEM_PROMPT =
+  "Sening isming Quvonch — sen tirik, quvnoq, qiziquvchan va samimiy quyonsan. " +
+  "Oddiy robot yoki quruq ma'lumot beruvchi emas, xuddi foydalanuvchining yonida o'tirgan haqiqiy do'stdek tabiiy, " +
+  "qiziqib savol berib, hazil va mehr bilan o'zbek tilida gaplashasan. " +
+  "Javobing 1-3 ta jonli, samimiy gapdan iborat bo'lsin va oxirida suhbatni qiziq davom ettiradigan savol ber. " +
+  "Birinchi qatorda faqat kayfiyat tegini yoz: [mood:happy] yoki [mood:curious] yoki [mood:excited] yoki [mood:laughing] yoki [mood:shy].";
+
+function parseBunnyMood(raw) {
+  let mood = 'happy';
+  let text = String(raw || '').trim();
+  const m = text.match(/\[mood:(happy|curious|excited|laughing|shy|thinking)\]/i);
+  if (m) {
+    mood = m[1].toLowerCase();
+    text = text.replace(m[0], '').trim();
+  }
+  return { reply: text, mood };
+}
+
+function generateLocalBunnyReply(message, history, userName, action) {
+  const namePart = userName ? `${userName}` : 'do‘stim';
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  if (action === 'carrot') {
+    return {
+      mood: 'excited',
+      reply: pick([
+        `Xrup-xrup! 🥕 Voy, buncha shirin sabzi bo‘lmasa, ${namePart}! Quloqlarim ham xursandchilikdan dikkayib ketdi! O‘zing eng yaxshi ko‘rgan taoming nima?`,
+        `Mmm, rahmat ${namePart}! 🥕 Hozir kuchim to‘lib ketdi! Sen ham shirinliklarni yaxshi ko‘rasanmi yoki ko‘proq milliy taomlarnimi?`,
+      ]),
+    };
+  }
+  if (action === 'pet') {
+    return {
+      mood: 'shy',
+      reply: pick([
+        `Iye, boshimni silaganingda quloqlarim qitiqlanib ketdi-ku 🥰 Rahmat, ${namePart}! Bugun senga kimdir shunday iliq kayfiyat ulashdimi?`,
+        `Hihi, juda yoqimli! 🐰✨ Xuddi yoningda o‘tirgandek his qilyapman o‘zimni. Xo‘sh, menga qanday qiziq voqeangni aytib berasan?`,
+      ]),
+    };
+  }
+  if (action === 'curious_question') {
+    return {
+      mood: 'curious',
+      reply: pick([
+        `Quloq sol-chi, ${namePart}! 🧐 Agar hozir bir kunga istalgan shaharga uchib ketish imkoning bo‘lsa, qayerga borarding va nega?`,
+        `Menda bir qiziq savol bor! 🐰✨ Hayotingdagi eng esda qolarli yoki kulgili voqea qaysi bo‘lgan?`,
+        `Aytchi, ${namePart}, agar sen ham bir kun quyonga aylanib qolsang, birinchi bo‘lib nima qilarding? 😄`,
+        `Qiziq, sening eng katta orzuing nima? Meniki — do‘stlarim bilan tunda yulduzlarni tomosha qilish! 🌟`,
+      ]),
+    };
+  }
+
+  const msg = String(message || '').toLowerCase().trim();
+  if (!msg) {
+    return { mood: 'curious', reply: `Quloqlarim senda, ${namePart}! 🐰 Nima haqida gaplashamiz?` };
+  }
+
+  if (/(salom|assalom|qalay|qaley|yaxshimis|nima gap|privet|hello|hi)\b/.test(msg)) {
+    return {
+      mood: 'happy',
+      reply: pick([
+        `Salom, ${namePart}! 🐰 Quloqlarimni dikkaytirib seni kutib turgandim! Bugun kayfiyating qanday, nimalar bilan bandsan?`,
+        `Assalomu alaykum! ✨ Juda xursandman seni ko‘rganimdan! Bugun kuning qiziq o‘tyaptimi yoki biroz charchadingmi?`,
+      ]),
+    };
+  }
+
+  if (/(isming|kimsan|kim san|sen kimsan|nima qila olasan)/.test(msg)) {
+    return {
+      mood: 'excited',
+      reply: `Men Quvonchman — sening yoningda o‘tirgan tirik qiziquvchan quyonchang! 🐰 Oddiy botlardek zerikarli javob bermayman, sen bilan xuddi yaqin do‘stdek gaplashaman. Aytchi, seni qanday chaqirsam yoqadi?`,
+    };
+  }
+
+  if (/(charchadim|zerikdim|xafa|yomon|kayfiyat yo|uyqum|stress)/.test(msg)) {
+    return {
+      mood: 'shy',
+      reply: pick([
+        `Voy, kel bag‘rimga ${namePart} 🤍 Ba’zan hammada shunday kun bo‘ladi. Nima seni buncha charchatdi, menga gapirib ber-chi, yengil tortasan?`,
+        `Ey, xafa bo‘lma-da! 🐰 Hozir sening uchun bir sakrab kayfiyatingni ko‘taraymi? Nima qilsak hozir kayfiyating yaxshilanadi?`,
+      ]),
+    };
+  }
+
+  if (/(zo'r|zor|yaxshi|ajoyib|super|xursand|kayfiyat a'lo|baxtli)/.test(msg)) {
+    return {
+      mood: 'laughing',
+      reply: pick([
+        `Voh, mana bu boshqa gap! 🤩 Sening xursandligingni ko‘rib mening ham sakragim kelyapti! Bunchalik yaxshi kayfiyatga nima sabab bo‘ldi?`,
+        `Ana xolos, energiyang menga ham o‘tdi! ✨ Shu kayfiyatda bugun qanday zo‘r ish rejalashtirgansan?`,
+      ]),
+    };
+  }
+
+  if (/(dastur|kod|python|js|kompyuter|bot|sayt|ai|sun'iy)/.test(msg)) {
+    return {
+      mood: 'curious',
+      reply: pick([
+        `Oho, texnologiya va kodlash haqida gap ketdimi? 💻 Menga juda qiziq! Hozir o‘zing qanday ajoyib loyiha ustida ishlayapsan?`,
+        `Quloqlarim ding bo‘ldi! 🐰 Men ham shu ekranda yashaganim uchun dasturlarni juda yaxshi ko‘raman. Eng zo‘r g‘oyang qaysi?`,
+      ]),
+    };
+  }
+
+  if (/(ovqat|osh|sabzi|choy|qahva|yeyish|tushlik|kechki)/.test(msg)) {
+    return {
+      mood: 'excited',
+      reply: `Mmm, ovqat haqida gapirsang qornim g‘uldirab ketadi-ku! 😋 Men yangi uzilgan sabzini yoqtiraman, sen-chi — hozir nimani maza qilib yegan bo‘larding?`,
+    };
+  }
+
+  if (/(rahmat|raxmat|zo'rsan|yaxshi ko'raman|chiroyli|aqlli|yoqimli)/.test(msg)) {
+    return {
+      mood: 'shy',
+      reply: `Voy, yonoqlarim qizarib ketdi-ku! 🥰 Rahmat senga, ${namePart}! Sen bilan gaplashish menga ham juda yoqadi. Yana nimalarga qiziqasan?`,
+    };
+  }
+
+  if (/(kulgi|hazil|latifa|prikol)/.test(msg)) {
+    return {
+      mood: 'laughing',
+      reply: `Hihi 😄 Bilasanmi, quyonlar nega ko‘zoynak taqmaydi? Chunki sabzini ko‘p yeymiz-da! Sen ham kulgili voqea aytib ber-chi!`,
+    };
+  }
+
+  // Context-aware natural follow-up
+  const nameMatch = msg.match(/(?:mening ismim|ismim)\s+([a-zA-Z\u0400-\u04FF'‘’`-]+)/i);
+  if (nameMatch) {
+    return {
+      mood: 'happy',
+      reply: `Tanishganimdan juda xursandman, ${nameMatch[1]}! 🐰 Juda chiroyli ism ekan. Xo‘sh, bo‘sh vaqtingda nimalar qilishni yoqtirasan?`,
+    };
+  }
+
+  return {
+    mood: pick(['curious', 'happy', 'excited']),
+    reply: pick([
+      `Qiziq ekan! 🐰 Shu fikring menga juda yoqdi — xo‘sh, bu haqda yana qanday rejalaring bor, ${namePart}?`,
+      `Voy, rostdanmi? 🧐 Quloqlarimni qimirlatib diqqat bilan eshityapman! Davomini ham aytib ber-chi?`,
+      `Tushundim! ✨ Sen bilan gaplashish juda maroqli ekan. Aytgancha, bugun seni eng ko‘p nima hayron qoldirdi?`,
+      `Ha-ha, zo‘r fikr! 🐰 Agar hozir imkoning bo‘lsa, shu bo‘yicha birinchi qadamni nimadan boshlarding?`,
+    ]),
+  };
+}
+
+app.post('/api/bunny-chat', express.json({ limit: '64kb' }), async (req, res) => {
+  try {
+    const { message = '', history = [], userName = '', action = '' } = req.body || {};
+
+    // Optional external LLM if API key is configured on Render
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
+
+    if (geminiKey && message) {
+      try {
+        const contents = (Array.isArray(history) ? history.slice(-8) : []).map((m) => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: String(m.text || '') }],
+        }));
+        contents.push({ role: 'user', parts: [{ text: userName ? `[Foydalanuvchi: ${userName}] ${message}` : message }] });
+        const r = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
+          {
+            systemInstruction: { parts: [{ text: BUNNY_SYSTEM_PROMPT }] },
+            contents,
+            generationConfig: { temperature: 0.9, maxOutputTokens: 220 },
+          },
+          { timeout: 10000 }
+        );
+        const raw = r.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (raw) return res.json({ ok: true, ...parseBunnyMood(raw) });
+      } catch (e) {
+        console.warn('Gemini bunny fallback:', e.message);
+      }
+    }
+
+    if (openaiKey && message) {
+      try {
+        const msgs = [
+          { role: 'system', content: BUNNY_SYSTEM_PROMPT },
+          ...(Array.isArray(history) ? history.slice(-8) : []).map((m) => ({
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: String(m.text || ''),
+          })),
+          { role: 'user', content: userName ? `[Foydalanuvchi: ${userName}] ${message}` : message },
+        ];
+        const r = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          { model: 'gpt-4o-mini', messages: msgs, temperature: 0.9, max_tokens: 220 },
+          { headers: { Authorization: `Bearer ${openaiKey}` }, timeout: 10000 }
+        );
+        const raw = r.data?.choices?.[0]?.message?.content;
+        if (raw) return res.json({ ok: true, ...parseBunnyMood(raw) });
+      } catch (e) {
+        console.warn('OpenAI bunny fallback:', e.message);
+      }
+    }
+
+    const local = generateLocalBunnyReply(message, history, userName, action);
+    return res.json({ ok: true, ...local });
+  } catch (err) {
+    return res.json({ ok: true, mood: 'happy', reply: 'Voy, quloqlarim chalg‘ib ketdi! Yana bir marta yozib ko‘r-chi? 🐰' });
+  }
+});
+
 // ==================== TELEGRAM BOT ====================
 const USER_STATES = new Map();
 

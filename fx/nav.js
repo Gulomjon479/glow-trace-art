@@ -6,6 +6,7 @@
     { id: 'air', href: '/air.html', icon: '✍️', title: 'Havoda chizish' },
     { id: 'face', href: '/face.html', icon: '🎭', title: 'Yuz sehri' },
     { id: 'mirror', href: '/mirror.html', icon: '🌌', title: 'Zarracha ko‘zgu' },
+    { id: 'bunny', href: '/bunny.html', icon: '🐰', title: 'Jonli Quyon' },
   ];
 
   function build() {

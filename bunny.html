@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Quvonch AI — Jonli Ovozli Quyon</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="fx/fx.css?v=2" />
-  <script src="fx/nav.js?v=2"></script>
-  <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.169.0/build/three.module.js" } }</script>
+  <script src="https://telegram.org/js/telegram-web-app.js" async></script>
+  <link rel="stylesheet" href="fx/fx.css?v=3" />
+  <script src="fx/nav.js?v=3"></script>
+  <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js" } }</script>
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
@@ -25,20 +25,20 @@
       left: 0; right: 0; bottom: 0;
       overflow: hidden;
       background:
-        radial-gradient(circle at 50% 42%, rgba(139, 92, 246, 0.24) 0%, rgba(15, 10, 34, 0.92) 52%, #04030c 100%);
+        radial-gradient(circle at 50% 42%, rgba(139, 92, 246, 0.26) 0%, rgba(15, 10, 34, 0.92) 52%, #04030c 100%);
       transition: background 0.6s ease;
     }
     .live-stage[data-state="listening"] {
       background:
-        radial-gradient(circle at 50% 42%, rgba(56, 189, 248, 0.28) 0%, rgba(10, 18, 38, 0.92) 52%, #030612 100%);
+        radial-gradient(circle at 50% 42%, rgba(56, 189, 248, 0.30) 0%, rgba(10, 18, 38, 0.92) 52%, #030612 100%);
     }
     .live-stage[data-state="thinking"] {
       background:
-        radial-gradient(circle at 50% 42%, rgba(245, 158, 11, 0.22) 0%, rgba(22, 13, 38, 0.92) 52%, #060410 100%);
+        radial-gradient(circle at 50% 42%, rgba(245, 158, 11, 0.24) 0%, rgba(22, 13, 38, 0.92) 52%, #060410 100%);
     }
     .live-stage[data-state="speaking"] {
       background:
-        radial-gradient(circle at 50% 42%, rgba(236, 72, 153, 0.26) 0%, rgba(24, 10, 38, 0.92) 52%, #070310 100%);
+        radial-gradient(circle at 50% 42%, rgba(236, 72, 153, 0.28) 0%, rgba(24, 10, 38, 0.92) 52%, #070310 100%);
     }
 
     #bunnyCanvas {
@@ -68,7 +68,7 @@
       gap: 9px;
       padding: 8px 15px;
       border-radius: 999px;
-      background: rgba(12, 10, 28, 0.62);
+      background: rgba(12, 10, 28, 0.66);
       border: 1px solid rgba(196, 206, 255, 0.18);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
@@ -106,7 +106,7 @@
       padding: 8px 13px;
       border-radius: 999px;
       border: 1px solid rgba(196, 206, 255, 0.2);
-      background: rgba(12, 10, 28, 0.64);
+      background: rgba(12, 10, 28, 0.68);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       color: #eef2ff;
@@ -135,7 +135,7 @@
       z-index: 25;
       padding: 9px 16px;
       border-radius: 999px;
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.26), rgba(56, 189, 248, 0.26));
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(56, 189, 248, 0.28));
       border: 1px solid rgba(52, 211, 153, 0.55);
       backdrop-filter: blur(14px);
       color: #d1fae5;
@@ -159,7 +159,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
+      gap: 13px;
       z-index: 20;
       background: linear-gradient(0deg, rgba(5, 3, 14, 0.92) 0%, rgba(5, 3, 14, 0.52) 55%, transparent 100%);
       pointer-events: none;
@@ -176,20 +176,20 @@
       pointer-events: auto;
     }
     .user-heard-line {
-      font-size: 13px;
+      font-size: 13.5px;
       color: #7dd3fc;
-      opacity: 0.9;
+      opacity: 0.95;
       max-width: 100%;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      min-height: 18px;
+      min-height: 19px;
     }
     .bunny-subtitle {
       padding: 10px 18px;
       border-radius: 18px;
-      background: rgba(14, 11, 30, 0.66);
-      border: 1px solid rgba(196, 181, 253, 0.2);
+      background: rgba(14, 11, 30, 0.72);
+      border: 1px solid rgba(196, 181, 253, 0.22);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       font-size: 15px;
@@ -209,8 +209,8 @@
       gap: 8px;
       padding: 6px 8px;
       border-radius: 999px;
-      background: rgba(16, 13, 34, 0.88);
-      border: 1px solid rgba(196, 181, 253, 0.32);
+      background: rgba(16, 13, 34, 0.92);
+      border: 1px solid rgba(196, 181, 253, 0.35);
       backdrop-filter: blur(16px);
       pointer-events: auto;
     }
@@ -247,7 +247,7 @@
       width: 50px; height: 50px;
       border-radius: 50%;
       border: 1px solid rgba(196, 206, 255, 0.22);
-      background: rgba(18, 15, 38, 0.78);
+      background: rgba(18, 15, 38, 0.8);
       backdrop-filter: blur(12px);
       color: #e2e8f0;
       font-size: 20px;
@@ -260,8 +260,8 @@
     .side-orb:hover { border-color: rgba(216, 180, 254, 0.6); transform: scale(1.06); }
     .side-orb:active { transform: scale(0.94); }
     .side-orb.danger {
-      background: rgba(239, 68, 68, 0.24);
-      border-color: rgba(248, 113, 113, 0.6);
+      background: rgba(239, 68, 68, 0.26);
+      border-color: rgba(248, 113, 113, 0.65);
       color: #fecaca;
     }
     .side-orb.active {
@@ -299,12 +299,12 @@
 
     .live-stage[data-state="listening"] .hero-live-btn {
       background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 55%, #6366f1 100%);
-      box-shadow: 0 0 42px rgba(56, 189, 248, 0.72), inset 0 0 18px rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 42px rgba(56, 189, 248, 0.75), inset 0 0 18px rgba(255, 255, 255, 0.3);
     }
     .live-stage[data-state="listening"] .hero-live-btn::before {
-      border-color: rgba(56, 189, 248, 0.7);
+      border-color: rgba(56, 189, 248, 0.75);
       opacity: 1;
-      animation: pulseRing 1.4s infinite ease-out;
+      animation: pulseRing 1.3s infinite ease-out;
     }
     .live-stage[data-state="thinking"] .hero-live-btn {
       background: linear-gradient(135deg, #f59e0b 0%, #a855f7 100%);
@@ -312,12 +312,12 @@
     }
     .live-stage[data-state="speaking"] .hero-live-btn {
       background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
-      box-shadow: 0 0 42px rgba(236, 72, 153, 0.72);
+      box-shadow: 0 0 42px rgba(236, 72, 153, 0.75);
     }
     .live-stage[data-state="speaking"] .hero-live-btn::before {
-      border-color: rgba(244, 114, 182, 0.7);
+      border-color: rgba(244, 114, 182, 0.75);
       opacity: 1;
-      animation: pulseRing 1.1s infinite ease-out;
+      animation: pulseRing 1.05s infinite ease-out;
     }
 
     @keyframes pulseRing {
@@ -328,8 +328,9 @@
     .live-hint {
       font-size: 12px;
       color: #a5b4fc;
-      opacity: 0.85;
+      opacity: 0.88;
       letter-spacing: 0.2px;
+      text-align: center;
     }
 
     /* Slide-Over Drawers (Knowledge Vault & Settings) */
@@ -337,7 +338,7 @@
       position: fixed;
       inset: 0;
       z-index: 80;
-      background: rgba(3, 2, 10, 0.72);
+      background: rgba(3, 2, 10, 0.74);
       backdrop-filter: blur(8px);
       display: none;
       align-items: center;
@@ -544,7 +545,7 @@
     </div>
   </div>
 
-  <!-- Knowledge Vault Drawer (Teach the Bunny Unlimited Data!) -->
+  <!-- Knowledge Vault Drawer -->
   <div class="modal-backdrop" id="knowledgeModal">
     <div class="modal-card">
       <div class="modal-head">
@@ -584,7 +585,7 @@
     </div>
   </div>
 
-  <!-- Settings Modal (Cartoon Voice & AI Provider) -->
+  <!-- Settings Modal -->
   <div class="modal-backdrop" id="settingsModal">
     <div class="modal-card">
       <div class="modal-head">
@@ -614,6 +615,15 @@
           </div>
         </div>
 
+        <div class="field-group">
+          <label for="speechLangSelect">Mikrofon tili (Ovozni tanish)</label>
+          <select class="field-select" id="speechLangSelect">
+            <option value="uz-UZ">🇺🇿 O‘zbek tili (uz-UZ)</option>
+            <option value="ru-RU">🇷🇺 Rus tili (ru-RU)</option>
+            <option value="en-US">🇺🇸 Ingliz tili (en-US)</option>
+          </select>
+        </div>
+
         <div class="btn-row">
           <button class="secondary-btn" id="testVoiceBtn" type="button" style="flex:1">🔊 Ovozni sinab ko‘rish</button>
         </div>
@@ -640,50 +650,196 @@
   </div>
 
   <script type="module">
-    import { Bunny3D } from './fx/bunny3d.js';
-
     try {
       const tg = window.Telegram?.WebApp;
       if (tg) { tg.ready(); tg.expand(); }
     } catch (e) {}
 
+    // ---- Built-in Zero-Dependency Pixar-Style 2D Cartoon Bunny Fallback ----
+    // Guarantees the bunny ALWAYS renders even if WebGL or Three.js CDN is unavailable!
+    class Bunny2D {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.lookX = 0; this.lookY = 0;
+        this.targetLookX = 0; this.targetLookY = 0;
+        this.aiState = 'idle';
+        this.mood = 'happy';
+        this.voiceLevel = 0; this.smoothVoice = 0;
+        this.micLevel = 0; this.smoothMic = 0;
+        this.blinkTimer = 2.5; this.blinking = 0;
+        this.hopTime = 0; this.learnBurst = 0;
+      }
+      setLook(nx, ny) { this.targetLookX = Math.max(-1, Math.min(1, nx)); this.targetLookY = Math.max(-1, Math.min(1, ny)); }
+      setState(s) { this.aiState = s || 'idle'; }
+      setMood(m) { this.mood = m || 'happy'; if (m === 'excited' || m === 'laughing') this.hopTime = 0.6; }
+      setVoiceLevel(v) { this.voiceLevel = Math.max(0, Math.min(1, v || 0)); }
+      setMicLevel(v) { this.micLevel = Math.max(0, Math.min(1, v || 0)); }
+      triggerHop() { this.hopTime = 0.6; }
+      triggerWiggle() { this.hopTime = 0.45; }
+      triggerLearnBurst() { this.learnBurst = 1.5; this.hopTime = 0.7; }
+      update(dt, t) {
+        const ctx = this.ctx;
+        if (!ctx) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = this.canvas.clientWidth || window.innerWidth;
+        const h = this.canvas.clientHeight || window.innerHeight;
+        if (this.canvas.width !== Math.round(w * dpr) || this.canvas.height !== Math.round(h * dpr)) {
+          this.canvas.width = Math.round(w * dpr);
+          this.canvas.height = Math.round(h * dpr);
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+
+        this.smoothVoice += (this.voiceLevel - this.smoothVoice) * Math.min(1, dt * 24);
+        this.smoothMic += (this.micLevel - this.smoothMic) * Math.min(1, dt * 18);
+        this.lookX += (this.targetLookX - this.lookX) * Math.min(1, dt * 7);
+        this.lookY += (this.targetLookY - this.lookY) * Math.min(1, dt * 7);
+        if (this.hopTime > 0) this.hopTime = Math.max(0, this.hopTime - dt);
+        if (this.learnBurst > 0) this.learnBurst = Math.max(0, this.learnBurst - dt);
+        this.blinkTimer -= dt;
+        if (this.blinkTimer <= 0) { this.blinking = 0.14; this.blinkTimer = 2 + Math.random() * 3; }
+        if (this.blinking > 0) this.blinking = Math.max(0, this.blinking - dt);
+
+        const cx = w / 2;
+        const cy = h * 0.45;
+        const s = Math.min(w, h) * 0.25;
+        const hopY = this.hopTime > 0 ? Math.abs(Math.sin(this.hopTime * Math.PI * 3.5)) * s * 0.22 : 0;
+        const breath = Math.sin(t * 2.2) * s * 0.025;
+        const energy = this.aiState === 'speaking' ? this.smoothVoice : (this.aiState === 'listening' ? this.smoothMic : 0);
+
+        const colors = { idle: '#a855f7', listening: '#38bdf8', thinking: '#fbbf24', speaking: '#ec4899' };
+        const ringColor = colors[this.aiState] || '#a855f7';
+
+        // Glowing Gemini-Live halo rings
+        ctx.save();
+        ctx.strokeStyle = ringColor;
+        ctx.globalAlpha = 0.25 + energy * 0.5;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy - s * 0.05, s * (1.28 + energy * 0.22), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 0.14 + energy * 0.35;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy - s * 0.05, s * (1.52 + energy * 0.34), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        const bx = cx;
+        const by = cy - hopY + breath;
+
+        // Ears
+        const earBounce = energy * 0.18;
+        for (const side of [-1, 1]) {
+          ctx.save();
+          ctx.translate(bx + side * s * 0.34, by - s * 0.56);
+          ctx.rotate(side * (0.16 - earBounce + Math.sin(t * 2.4) * 0.05));
+          ctx.fillStyle = '#faf8ff';
+          ctx.beginPath(); ctx.ellipse(0, -s * 0.48, s * 0.19, s * 0.58, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffa8cb';
+          ctx.beginPath(); ctx.ellipse(0, -s * 0.46, s * 0.105, s * 0.44, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
+
+        // Body
+        const bodyGrad = ctx.createRadialGradient(bx - s * 0.2, by + s * 0.45, s * 0.1, bx, by + s * 0.65, s * 0.85);
+        bodyGrad.addColorStop(0, '#ffffff'); bodyGrad.addColorStop(1, '#dfd6fa');
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath(); ctx.ellipse(bx, by + s * 0.68, s * 0.62, s * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Glowing AI chest crystal
+        ctx.save();
+        ctx.fillStyle = ringColor;
+        ctx.shadowColor = ringColor; ctx.shadowBlur = 16;
+        ctx.beginPath();
+        ctx.moveTo(bx, by + s * 0.28); ctx.lineTo(bx + s * 0.1, by + s * 0.41);
+        ctx.lineTo(bx, by + s * 0.54); ctx.lineTo(bx - s * 0.1, by + s * 0.41);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        // Head
+        const headGrad = ctx.createRadialGradient(bx - s * 0.22, by - s * 0.22, s * 0.12, bx, by, s * 0.85);
+        headGrad.addColorStop(0, '#ffffff'); headGrad.addColorStop(1, '#e6dffc');
+        ctx.fillStyle = headGrad;
+        ctx.beginPath(); ctx.ellipse(bx, by - s * 0.05, s * 0.68, s * 0.61, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Cheeks blush
+        ctx.fillStyle = 'rgba(255, 110, 168, 0.34)';
+        ctx.beginPath(); ctx.ellipse(bx - s * 0.36, by + s * 0.12, s * 0.14, s * 0.09, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(bx + s * 0.36, by + s * 0.12, s * 0.14, s * 0.09, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Eyes
+        const eyeH = this.blinking > 0 ? s * 0.02 : s * 0.145;
+        for (const side of [-1, 1]) {
+          const ex = bx + side * s * 0.25 + this.lookX * s * 0.04;
+          const ey = by - s * 0.1 + this.lookY * s * 0.03;
+          ctx.fillStyle = '#18102c';
+          ctx.beginPath(); ctx.ellipse(ex, ey, s * 0.115, eyeH, 0, 0, Math.PI * 2); ctx.fill();
+          if (this.blinking <= 0) {
+            ctx.fillStyle = '#6d28d9';
+            ctx.beginPath(); ctx.ellipse(ex, ey + s * 0.02, s * 0.075, s * 0.085, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#120a24';
+            ctx.beginPath(); ctx.arc(ex, ey + s * 0.01, s * 0.048, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(ex + s * 0.038, ey - s * 0.045, s * 0.036, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(ex - s * 0.03, ey + s * 0.04, s * 0.016, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+
+        // Nose
+        ctx.fillStyle = '#ff5f96';
+        ctx.beginPath(); ctx.ellipse(bx, by + s * 0.04, s * 0.075, s * 0.052, 0, 0, Math.PI * 2); ctx.fill();
+
+        // Lip-sync mouth
+        const mOpen = this.aiState === 'speaking' ? (0.04 + this.smoothVoice * 0.16) * s : 0.035 * s;
+        ctx.fillStyle = '#6b1c40';
+        ctx.beginPath(); ctx.ellipse(bx, by + s * 0.19, s * 0.11, mOpen, 0, 0, Math.PI * 2); ctx.fill();
+        if (mOpen > s * 0.07) {
+          ctx.fillStyle = '#ff7aa8';
+          ctx.beginPath(); ctx.ellipse(bx, by + s * 0.19 + mOpen * 0.45, s * 0.065, mOpen * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+
     // ---- DOM refs ----
-    const liveStage       = document.getElementById('liveStage');
-    const canvas          = document.getElementById('bunnyCanvas');
-    const bunnyNameLabel  = document.getElementById('bunnyNameLabel');
-    const stateLabel      = document.getElementById('stateLabel');
-    const kbCountBadge    = document.getElementById('kbCountBadge');
-    const learnToast      = document.getElementById('learnToast');
-    const userHeardLine   = document.getElementById('userHeardLine');
-    const bunnySubtitle   = document.getElementById('bunnySubtitle');
-    const heroLiveBtn     = document.getElementById('heroLiveBtn');
-    const endOrMuteBtn    = document.getElementById('endOrMuteBtn');
-    const toggleTypeBtn   = document.getElementById('toggleTypeBtn');
-    const quickTypeForm   = document.getElementById('quickTypeForm');
-    const quickTypeInput  = document.getElementById('quickTypeInput');
-    const liveHint        = document.getElementById('liveHint');
+    const liveStage          = document.getElementById('liveStage');
+    const canvas             = document.getElementById('bunnyCanvas');
+    const bunnyNameLabel     = document.getElementById('bunnyNameLabel');
+    const stateLabel         = document.getElementById('stateLabel');
+    const kbCountBadge       = document.getElementById('kbCountBadge');
+    const learnToast         = document.getElementById('learnToast');
+    const userHeardLine      = document.getElementById('userHeardLine');
+    const bunnySubtitle      = document.getElementById('bunnySubtitle');
+    const heroLiveBtn        = document.getElementById('heroLiveBtn');
+    const endOrMuteBtn       = document.getElementById('endOrMuteBtn');
+    const toggleTypeBtn      = document.getElementById('toggleTypeBtn');
+    const quickTypeForm      = document.getElementById('quickTypeForm');
+    const quickTypeInput     = document.getElementById('quickTypeInput');
+    const liveHint           = document.getElementById('liveHint');
 
     // Modals
-    const knowledgeModal  = document.getElementById('knowledgeModal');
-    const settingsModal   = document.getElementById('settingsModal');
-    const openKnowledgeBtn= document.getElementById('openKnowledgeBtn');
-    const openSettingsBtn = document.getElementById('openSettingsBtn');
-    const kbTitleInput    = document.getElementById('kbTitleInput');
-    const kbContentInput  = document.getElementById('kbContentInput');
-    const saveKbBtn       = document.getElementById('saveKbBtn');
-    const uploadKbFileBtn = document.getElementById('uploadKbFileBtn');
-    const kbFileInput     = document.getElementById('kbFileInput');
-    const kbList          = document.getElementById('kbList');
-    const iqLevelText     = document.getElementById('iqLevelText');
-    const iqCountText     = document.getElementById('iqCountText');
-    const iqFill          = document.getElementById('iqFill');
-    const voicePresetGrid = document.getElementById('voicePresetGrid');
-    const testVoiceBtn    = document.getElementById('testVoiceBtn');
-    const bunnyNameInput  = document.getElementById('bunnyNameInput');
+    const knowledgeModal     = document.getElementById('knowledgeModal');
+    const settingsModal      = document.getElementById('settingsModal');
+    const openKnowledgeBtn   = document.getElementById('openKnowledgeBtn');
+    const openSettingsBtn    = document.getElementById('openSettingsBtn');
+    const kbTitleInput       = document.getElementById('kbTitleInput');
+    const kbContentInput     = document.getElementById('kbContentInput');
+    const saveKbBtn          = document.getElementById('saveKbBtn');
+    const uploadKbFileBtn    = document.getElementById('uploadKbFileBtn');
+    const kbFileInput        = document.getElementById('kbFileInput');
+    const kbList             = document.getElementById('kbList');
+    const iqLevelText        = document.getElementById('iqLevelText');
+    const iqCountText        = document.getElementById('iqCountText');
+    const iqFill             = document.getElementById('iqFill');
+    const voicePresetGrid    = document.getElementById('voicePresetGrid');
+    const speechLangSelect   = document.getElementById('speechLangSelect');
+    const testVoiceBtn       = document.getElementById('testVoiceBtn');
+    const bunnyNameInput     = document.getElementById('bunnyNameInput');
     const customPersonaInput = document.getElementById('customPersonaInput');
-    const geminiKeyInput  = document.getElementById('geminiKeyInput');
-    const aiStatusNote    = document.getElementById('aiStatusNote');
-    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const geminiKeyInput     = document.getElementById('geminiKeyInput');
+    const aiStatusNote       = document.getElementById('aiStatusNote');
+    const saveSettingsBtn    = document.getElementById('saveSettingsBtn');
 
     // ---- Identity ----
     const params = new URLSearchParams(window.location.search);
@@ -695,30 +851,14 @@
     })());
     const userName = tgUser.first_name || '';
 
-    // ---- 3D Bunny ----
-    const bunny = new Bunny3D(canvas);
-    let lastT = performance.now();
-    (function renderLoop(now) {
-      requestAnimationFrame(renderLoop);
-      const dt = Math.min(0.05, (now - lastT) / 1000);
-      lastT = now;
-      updateAudioMeters();
-      bunny.update(dt, now * 0.001);
-    })(lastT);
-
-    window.addEventListener('pointermove', (e) => {
-      bunny.setLook((e.clientX / window.innerWidth - 0.5) * 2, (e.clientY / window.innerHeight - 0.5) * 2);
-    });
-    window.addEventListener('touchmove', (e) => {
-      const t = e.touches?.[0];
-      if (t) bunny.setLook((t.clientX / window.innerWidth - 0.5) * 2, (t.clientY / window.innerHeight - 0.5) * 2);
-    }, { passive: true });
-
-    // ---- App State ----
+    // ---- App State (ALL declared BEFORE starting renderLoop!) ----
+    let bunny = null;
     let uiState = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking'
     let liveSessionActive = false;
     let voiceMuted = false;
     let selectedPreset = localStorage.getItem('bunny_voice_preset') || 'cartoon';
+    let speechLang = localStorage.getItem('bunny_speech_lang') || 'uz-UZ';
+    speechLangSelect.value = speechLang;
     let bunnyName = 'Quvonch';
     const history = [];
 
@@ -729,55 +869,56 @@
     let activeAudioSource = null;
     let activeAudioEl = null;
     let activeAbortCtrl = null;
-
-    // Mic live volume meter (for Gemini-Live listening glow!)
-    let micStream = null;
-    let micAnalyser = null;
-    let micDataArr = null;
+    let simVoiceLevel = 0;
+    let listeningPulseBoost = 0;
 
     // Speech Recognition (Web Speech API) + MediaRecorder fallback
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
     let recRestartTimer = null;
     let mediaRecorder = null;
+    let recMicStream = null;
     let recordedChunks = [];
     let isRecordingFallback = false;
     let hasGeminiBackend = false;
+    let isAsking = false;
 
     function ensureAudioCtx() {
-      if (!audioCtx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) audioCtx = new AC();
-      }
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume().catch(() => {});
-      }
+      try {
+        if (!audioCtx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) audioCtx = new AC();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+      } catch (e) {}
       return audioCtx;
     }
 
-    function updateAudioMeters() {
-      if (uiState === 'speaking' && voiceAnalyser && voiceDataArr) {
-        voiceAnalyser.getByteTimeDomainData(voiceDataArr);
-        let sum = 0;
-        for (let i = 0; i < voiceDataArr.length; i++) {
-          const v = (voiceDataArr[i] - 128) / 128;
-          sum += v * v;
+    function updateAudioMeters(t) {
+      if (!bunny) return;
+      if (uiState === 'speaking') {
+        if (voiceAnalyser && voiceDataArr && activeAudioSource) {
+          voiceAnalyser.getByteTimeDomainData(voiceDataArr);
+          let sum = 0;
+          for (let i = 0; i < voiceDataArr.length; i++) {
+            const v = (voiceDataArr[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / voiceDataArr.length);
+          bunny.setVoiceLevel(Math.min(1, rms * 4.2));
+        } else {
+          bunny.setVoiceLevel(simVoiceLevel);
         }
-        const rms = Math.sqrt(sum / voiceDataArr.length);
-        bunny.setVoiceLevel(Math.min(1, rms * 4.2));
-      } else if (uiState !== 'speaking') {
+      } else {
         bunny.setVoiceLevel(0);
       }
 
-      if (uiState === 'listening' && micAnalyser && micDataArr) {
-        micAnalyser.getByteTimeDomainData(micDataArr);
-        let sum = 0;
-        for (let i = 0; i < micDataArr.length; i++) {
-          const v = (micDataArr[i] - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / micDataArr.length);
-        bunny.setMicLevel(Math.min(1, rms * 4.5));
+      if (uiState === 'listening') {
+        listeningPulseBoost = Math.max(0, listeningPulseBoost - 0.03);
+        const gentleWave = 0.22 + Math.abs(Math.sin(t * 4.5)) * 0.22 + listeningPulseBoost * 0.55;
+        bunny.setMicLevel(Math.min(1, gentleWave));
       } else {
         bunny.setMicLevel(0);
       }
@@ -786,7 +927,7 @@
     function setUIState(nextState, customLabel = '') {
       uiState = nextState;
       liveStage.setAttribute('data-state', nextState);
-      bunny.setState(nextState);
+      if (bunny) bunny.setState(nextState);
 
       const labels = {
         idle: liveSessionActive ? 'Suhbat pauzada' : 'Jonli suhbatga tayyor',
@@ -825,7 +966,7 @@
       if (!facts || !facts.length) return;
       learnToast.textContent = `✨ Yangi bilim o‘rgandim: ${facts[0]}`;
       learnToast.classList.add('show');
-      bunny.triggerLearnBurst();
+      if (bunny) bunny.triggerLearnBurst();
       setTimeout(() => learnToast.classList.remove('show'), 4200);
     }
 
@@ -836,15 +977,43 @@
         activeAbortCtrl = null;
       }
       if (activeAudioSource) {
-        try { activeAudioSource.stop(); activeAudioSource.disconnect(); } catch (e) {}
+        try { activeAudioSource.onended = null; activeAudioSource.stop(); activeAudioSource.disconnect(); } catch (e) {}
         activeAudioSource = null;
       }
       if (activeAudioEl) {
-        try { activeAudioEl.pause(); activeAudioEl.src = ''; } catch (e) {}
+        try { activeAudioEl.onended = null; activeAudioEl.pause(); activeAudioEl.src = ''; } catch (e) {}
         activeAudioEl = null;
       }
+      simVoiceLevel = 0;
       try { window.speechSynthesis?.cancel(); } catch (e) {}
-      bunny.setVoiceLevel(0);
+      if (bunny) bunny.setVoiceLevel(0);
+    }
+
+    function playMp3ViaElement(arrayBuf, signal) {
+      return new Promise((resolve) => {
+        if (signal?.aborted) return resolve();
+        const blob = new Blob([arrayBuf], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        const el = new Audio(url);
+        el.playsInline = true;
+        activeAudioEl = el;
+
+        const fakeWave = setInterval(() => {
+          if (uiState === 'speaking') simVoiceLevel = 0.32 + Math.random() * 0.58;
+        }, 85);
+
+        const done = () => {
+          clearInterval(fakeWave);
+          simVoiceLevel = 0;
+          URL.revokeObjectURL(url);
+          if (activeAudioEl === el) activeAudioEl = null;
+          resolve();
+        };
+
+        el.onended = done;
+        el.onerror = done;
+        el.play().catch(done);
+      });
     }
 
     // ---- Cartoon Neural Voice Playback with Real-Time Lip-Sync ----
@@ -872,74 +1041,65 @@
         const arrayBuf = await resp.arrayBuffer();
         if (ctrl.signal.aborted) return;
 
+        // Try Web Audio API first (gives real 60 FPS AnalyserNode lip-sync)
+        let playedWithWebAudio = false;
         const ctx = ensureAudioCtx();
-        if (ctx) {
-          const decoded = await ctx.decodeAudioData(arrayBuf.slice(0));
-          if (ctrl.signal.aborted) return;
+        if (ctx && ctx.state === 'running') {
+          try {
+            const decoded = await ctx.decodeAudioData(arrayBuf.slice(0));
+            if (ctrl.signal.aborted) return;
 
-          const src = ctx.createBufferSource();
-          src.buffer = decoded;
-          voiceAnalyser = ctx.createAnalyser();
-          voiceAnalyser.fftSize = 256;
-          voiceDataArr = new Uint8Array(voiceAnalyser.frequencyBinCount);
+            const src = ctx.createBufferSource();
+            src.buffer = decoded;
+            voiceAnalyser = ctx.createAnalyser();
+            voiceAnalyser.fftSize = 256;
+            voiceDataArr = new Uint8Array(voiceAnalyser.frequencyBinCount);
 
-          src.connect(voiceAnalyser);
-          voiceAnalyser.connect(ctx.destination);
-          activeAudioSource = src;
+            src.connect(voiceAnalyser);
+            voiceAnalyser.connect(ctx.destination);
+            activeAudioSource = src;
+            playedWithWebAudio = true;
 
-          await new Promise((resolve) => {
-            src.onended = () => {
-              if (activeAudioSource === src) activeAudioSource = null;
-              resolve();
-            };
-            src.start(0);
-          });
-        } else {
-          // Fallback HTMLAudioElement
-          const blob = new Blob([arrayBuf], { type: 'audio/mpeg' });
-          const url = URL.createObjectURL(blob);
-          const el = new Audio(url);
-          activeAudioEl = el;
-          const fakeWave = setInterval(() => {
-            if (uiState === 'speaking') bunny.setVoiceLevel(0.35 + Math.random() * 0.55);
-          }, 90);
-          await new Promise((resolve) => {
-            el.onended = el.onerror = () => {
-              clearInterval(fakeWave);
-              URL.revokeObjectURL(url);
-              if (activeAudioEl === el) activeAudioEl = null;
-              resolve();
-            };
-            el.play().catch(() => {
-              clearInterval(fakeWave);
-              resolve();
+            await new Promise((resolve) => {
+              src.onended = () => {
+                if (activeAudioSource === src) activeAudioSource = null;
+                resolve();
+              };
+              src.start(0);
             });
-          });
+          } catch (decodeErr) {
+            playedWithWebAudio = false;
+          }
+        }
+
+        // Rock-solid HTMLAudioElement fallback so voice ALWAYS plays!
+        if (!playedWithWebAudio && !ctrl.signal.aborted) {
+          await playMp3ViaElement(arrayBuf, ctrl.signal);
         }
       } catch (err) {
         if (ctrl.signal.aborted) return;
-        // Fallback browser speechSynthesis only if server TTS is unreachable
         if ('speechSynthesis' in window) {
           await new Promise((resolve) => {
             try {
               const u = new SpeechSynthesisUtterance(text);
-              u.lang = 'uz-UZ';
+              u.lang = speechLang || 'uz-UZ';
               u.pitch = 1.38;
               u.rate = 1.04;
               const sim = setInterval(() => {
-                if (uiState === 'speaking') bunny.setVoiceLevel(0.3 + Math.random() * 0.5);
+                if (uiState === 'speaking') simVoiceLevel = 0.3 + Math.random() * 0.5;
               }, 100);
-              u.onend = u.onerror = () => { clearInterval(sim); resolve(); };
+              u.onend = u.onerror = () => { clearInterval(sim); simVoiceLevel = 0; resolve(); };
               speechSynthesis.speak(u);
             } catch (e) { resolve(); }
           });
         }
       } finally {
         if (activeAbortCtrl === ctrl) activeAbortCtrl = null;
-        bunny.setVoiceLevel(0);
+        simVoiceLevel = 0;
+        if (bunny) bunny.setVoiceLevel(0);
         if (!ctrl.signal.aborted) {
           if (liveSessionActive) {
-            scheduleResumeListening(280);
+            scheduleResumeListening(320);
           } else {
             setUIState('idle');
           }
@@ -948,7 +1108,6 @@
     }
 
     // ---- Send Question / Audio to Real AI ----
-    let isAsking = false;
     async function askBunny({ message = '', audioBase64 = '', audioMime = '' }) {
       if (isAsking) return;
       isAsking = true;
@@ -985,7 +1144,7 @@
         }
 
         const reply = data.reply || 'Voy, quloqlarim chalg‘ib qoldi! Yana bir marta so‘rab ko‘r-chi!';
-        bunny.setMood(data.mood || 'happy');
+        if (bunny) bunny.setMood(data.mood || 'happy');
         bunnySubtitle.textContent = reply;
         history.push({ role: 'bunny', text: reply });
 
@@ -1005,46 +1164,22 @@
       }
     }
 
-    // ---- Mic Volume Visualizer Setup ----
-    async function startMicVisualizer() {
-      try {
-        if (!micStream && navigator.mediaDevices?.getUserMedia) {
-          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          const ctx = ensureAudioCtx();
-          if (ctx) {
-            const src = ctx.createMediaStreamSource(micStream);
-            micAnalyser = ctx.createAnalyser();
-            micAnalyser.fftSize = 256;
-            micDataArr = new Uint8Array(micAnalyser.frequencyBinCount);
-            src.connect(micAnalyser);
-          }
-        }
-      } catch (e) {
-        // Fine — SpeechRecognition can still operate without visualizer
-      }
-    }
-
-    function stopMicVisualizer() {
-      if (micStream) {
-        micStream.getTracks().forEach((tr) => tr.stop());
-        micStream = null;
-        micAnalyser = null;
-        micDataArr = null;
-      }
-    }
-
     function stopListeningHardware() {
       clearTimeout(recRestartTimer);
       if (recognition) {
-        try { recognition.onend = null; recognition.stop(); } catch (e) {}
+        try { recognition.onend = null; recognition.onerror = null; recognition.abort(); } catch (e) {}
         recognition = null;
       }
       if (mediaRecorder && isRecordingFallback) {
         try { mediaRecorder.stop(); } catch (e) {}
       }
+      if (recMicStream) {
+        recMicStream.getTracks().forEach((tr) => tr.stop());
+        recMicStream = null;
+      }
     }
 
-    function scheduleResumeListening(delayMs = 300) {
+    function scheduleResumeListening(delayMs = 350) {
       clearTimeout(recRestartTimer);
       if (!liveSessionActive) return;
       recRestartTimer = setTimeout(() => {
@@ -1054,41 +1189,100 @@
       }, delayMs);
     }
 
+    let langFallbackTried = false;
+
     async function beginListeningTurn() {
       if (!liveSessionActive) return;
       stopSpeaking();
+      stopListeningHardware();
       ensureAudioCtx();
 
       if (SpeechRec) {
-        await startMicVisualizer();
         setUIState('listening');
-        userHeardLine.textContent = '🎙️ Eshityapman...';
+        userHeardLine.textContent = '🎙️ Mikrofon yoqilmoqda...';
 
         const rec = new SpeechRec();
-        rec.lang = 'uz-UZ';
+        rec.lang = speechLang || 'uz-UZ';
         rec.continuous = false;
         rec.interimResults = true;
         rec.maxAlternatives = 1;
         recognition = rec;
 
         let finalTranscript = '';
+        let latestPreview = '';
+        let silenceSubmitTimer = null;
+
+        const submitCaptured = () => {
+          clearTimeout(silenceSubmitTimer);
+          const text = (finalTranscript || latestPreview).trim();
+          if (text) {
+            finalTranscript = '';
+            latestPreview = '';
+            askBunny({ message: text });
+          }
+        };
+
+        rec.onaudiostart = () => {
+          userHeardLine.textContent = '🎙️ Eshityapman — bemalol gapiring!';
+          listeningPulseBoost = 0.6;
+        };
+
+        rec.onspeechstart = () => {
+          userHeardLine.textContent = '🗣️ Ovozingiz eshitilyapti...';
+          listeningPulseBoost = 1.0;
+        };
 
         rec.onresult = (ev) => {
+          listeningPulseBoost = 1.0;
           let interim = '';
           for (let i = ev.resultIndex; i < ev.results.length; i++) {
             const tr = ev.results[i][0]?.transcript || '';
             if (ev.results[i].isFinal) finalTranscript += tr + ' ';
             else interim += tr;
           }
-          const preview = (finalTranscript + interim).trim();
-          if (preview) userHeardLine.textContent = `“${preview}”`;
+          latestPreview = (finalTranscript + interim).trim();
+          if (latestPreview) {
+            userHeardLine.textContent = `“${latestPreview}”`;
+            clearTimeout(silenceSubmitTimer);
+            // If user pauses for 1.35s after speaking, submit smoothly!
+            silenceSubmitTimer = setTimeout(() => {
+              if (recognition === rec && (finalTranscript.trim() || latestPreview.trim())) {
+                try { rec.stop(); } catch (e) {}
+              }
+            }, 1350);
+          }
         };
 
         rec.onerror = (ev) => {
+          clearTimeout(silenceSubmitTimer);
           if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
             liveSessionActive = false;
             setUIState('idle');
-            bunnySubtitle.textContent = 'Mikrofonga ruxsat berilmadi. Brauzerda mikrofon ruxsatini yoqing yoki ⌨️ tugmasidan foydalaning.';
+            userHeardLine.textContent = '⚠️ Mikrofonga ruxsat berilmagan';
+            bunnySubtitle.textContent = 'Brauzer manzil satridagi qulf/mikrofon belgisidan mikrofonga ruxsat bering yoki ⌨️ tugmasi orqali yozing!';
+            return;
+          }
+          if (ev.error === 'language-not-supported' && !langFallbackTried) {
+            langFallbackTried = true;
+            speechLang = 'ru-RU';
+            speechLangSelect.value = 'ru-RU';
+            userHeardLine.textContent = '🔄 Mikrofon tili moslashtirilmoqda...';
+            scheduleResumeListening(300);
+            return;
+          }
+          if (ev.error === 'audio-capture') {
+            liveSessionActive = false;
+            setUIState('idle');
+            userHeardLine.textContent = '⚠️ Mikrofon topilmadi';
+            bunnySubtitle.textContent = 'Qurilmangizda mikrofon ulanmagan yoki boshqa dastur band qilgan. ⌨️ tugmasi orqali ham bemalol suhbatlashishingiz mumkin!';
+            return;
+          }
+          if (ev.error === 'network') {
+            liveSessionActive = false;
+            setUIState('idle');
+            userHeardLine.textContent = '⚠️ Ovozli tanish xizmati ulanmadi';
+            bunnySubtitle.textContent = 'Google Chrome brauzerida ovozli rejim eng zo‘r ishlaydi, yoki ⌨️ tugmasini bosib yozing — quyon baribir multfilm ovozida javob beradi!';
+            quickTypeForm.classList.add('open');
             return;
           }
           if (liveSessionActive && uiState === 'listening') {
@@ -1097,9 +1291,10 @@
         };
 
         rec.onend = () => {
+          clearTimeout(silenceSubmitTimer);
           if (recognition !== rec) return;
           recognition = null;
-          const text = finalTranscript.trim();
+          const text = (finalTranscript || latestPreview).trim();
           if (text) {
             askBunny({ message: text });
           } else if (liveSessionActive && uiState === 'listening') {
@@ -1115,13 +1310,13 @@
         return;
       }
 
-      // Fallback for WebViews without Web Speech API: MediaRecorder -> Gemini Audio if configured, else open quick-type
+      // Fallback for WebViews without Web Speech API: MediaRecorder -> Gemini Audio if configured
       if (hasGeminiBackend && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
         try {
-          await startMicVisualizer();
+          recMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
           recordedChunks = [];
           const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-          mediaRecorder = new MediaRecorder(micStream, { mimeType: mime });
+          mediaRecorder = new MediaRecorder(recMicStream, { mimeType: mime });
           isRecordingFallback = true;
           setUIState('listening', 'Gapiring, keyin ⏹ bosing...');
           userHeardLine.textContent = '🎙️ Ovoz yozilmoqda... tugagach ⏹ bosing';
@@ -1131,6 +1326,10 @@
           };
           mediaRecorder.onstop = async () => {
             isRecordingFallback = false;
+            if (recMicStream) {
+              recMicStream.getTracks().forEach((tr) => tr.stop());
+              recMicStream = null;
+            }
             const blob = new Blob(recordedChunks, { type: mime });
             if (blob.size < 1200) {
               setUIState('idle');
@@ -1151,55 +1350,52 @@
       liveSessionActive = false;
       setUIState('idle');
       quickTypeForm.classList.add('open');
+      toggleTypeBtn.classList.add('active');
       quickTypeInput.focus();
-      bunnySubtitle.textContent = 'Bu brauzerda ovozli tanish qo‘llab-quvvatlanmadi — Chrome/Edge brauzerda oching yoki pastdan yozing!';
+      bunnySubtitle.textContent = 'Bu brauzerda mikrofonli tanish cheklangan — Chrome brauzerda oching yoki pastdan yozing, quyon multfilm ovozida javob beradi!';
     }
 
     function endLiveSession() {
       liveSessionActive = false;
       stopListeningHardware();
       stopSpeaking();
-      stopMicVisualizer();
       setUIState('idle');
       userHeardLine.textContent = '';
     }
 
-    // ---- Main Hero Live Button (Gemini Live Behavior) ----
-    heroLiveBtn.addEventListener('click', async () => {
+    // ---- Main Hero Live Button ----
+    heroLiveBtn.addEventListener('click', () => {
       ensureAudioCtx();
       if (isRecordingFallback && mediaRecorder) {
         mediaRecorder.stop();
         return;
       }
       if (uiState === 'speaking') {
-        // Barge-in! Interrupt bunny immediately and listen
         liveSessionActive = true;
         beginListeningTurn();
         return;
       }
       if (uiState === 'listening') {
-        // Pause / stop listening
         endLiveSession();
         return;
       }
       if (uiState === 'thinking') return;
 
-      // Start continuous Gemini Live voice session!
       liveSessionActive = true;
       beginListeningTurn();
     });
 
-    // Tapping the 3D Bunny directly
     canvas.addEventListener('click', () => {
       ensureAudioCtx();
       if (uiState === 'speaking' && liveSessionActive) {
-        beginListeningTurn(); // Tap bunny to interrupt & ask next question
-      } else {
+        beginListeningTurn();
+      } else if (bunny) {
         bunny.triggerHop();
       }
     });
 
     endOrMuteBtn.addEventListener('click', () => {
+      ensureAudioCtx();
       if (liveSessionActive) {
         endLiveSession();
       } else {
@@ -1210,6 +1406,7 @@
     });
 
     toggleTypeBtn.addEventListener('click', () => {
+      ensureAudioCtx();
       quickTypeForm.classList.toggle('open');
       toggleTypeBtn.classList.toggle('active', quickTypeForm.classList.contains('open'));
       if (quickTypeForm.classList.contains('open')) quickTypeInput.focus();
@@ -1217,6 +1414,7 @@
 
     quickTypeForm.addEventListener('submit', (e) => {
       e.preventDefault();
+      ensureAudioCtx();
       const t = quickTypeInput.value.trim();
       if (!t) return;
       quickTypeInput.value = '';
@@ -1224,6 +1422,15 @@
       toggleTypeBtn.classList.remove('active');
       askBunny({ message: t });
     });
+
+    // ---- Pointer eye tracking ----
+    window.addEventListener('pointermove', (e) => {
+      if (bunny) bunny.setLook((e.clientX / window.innerWidth - 0.5) * 2, (e.clientY / window.innerHeight - 0.5) * 2);
+    });
+    window.addEventListener('touchmove', (e) => {
+      const t = e.touches?.[0];
+      if (t && bunny) bunny.setLook((t.clientX / window.innerWidth - 0.5) * 2, (t.clientY / window.innerHeight - 0.5) * 2);
+    }, { passive: true });
 
     // ---- Knowledge Vault & Settings ----
     function updateKnowledgeCounter(count) {
@@ -1311,6 +1518,12 @@
       syncPresetUI();
     });
 
+    speechLangSelect.addEventListener('change', () => {
+      speechLang = speechLangSelect.value;
+      langFallbackTried = false;
+      localStorage.setItem('bunny_speech_lang', speechLang);
+    });
+
     testVoiceBtn.addEventListener('click', () => {
       ensureAudioCtx();
       speakCartoonVoice(`Salom! Mening ismim ${bunnyName}! Ovozim sizga yoqdimi?`, selectedPreset);
@@ -1389,7 +1602,7 @@
         geminiKeyInput.value = '';
         await loadKnowledgeAndConfig();
         settingsModal.classList.remove('open');
-        bunny.triggerHop();
+        if (bunny) bunny.triggerHop();
       } finally {
         saveSettingsBtn.disabled = false;
         saveSettingsBtn.textContent = '💾 Sozlamalarni saqlash';
@@ -1415,7 +1628,29 @@
       });
     });
 
-    // ---- Init ----
+    // ---- Init Bunny (3D WebGL with automatic 2D Cartoon fallback!) ----
+    async function initBunnyRenderer() {
+      try {
+        const mod = await import('./fx/bunny3d.js?v=3');
+        bunny = new mod.Bunny3D(canvas);
+      } catch (err) {
+        console.warn('3D Bunny fallback to 2D Cartoon Bunny:', err);
+        bunny = new Bunny2D(canvas);
+      }
+      bunny.setState(uiState);
+      let lastT = performance.now();
+      function renderLoop(now) {
+        requestAnimationFrame(renderLoop);
+        const dt = Math.min(0.05, (now - lastT) / 1000);
+        lastT = now;
+        const sec = now * 0.001;
+        updateAudioMeters(sec);
+        bunny.update(dt, sec);
+      }
+      requestAnimationFrame(renderLoop);
+    }
+
+    initBunnyRenderer();
     loadKnowledgeAndConfig();
     bunnySubtitle.textContent = userName
       ? `Salom, ${userName}! Men Quvonchman — pastdagi mikrofonni bosing va xuddi Gemini Live kabi jonli gaplashamiz!`

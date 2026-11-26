@@ -34,7 +34,7 @@ export class Bunny3D {
     this.scene.add(this.auraLight);
 
     this.root = new THREE.Group();
-    this.root.position.y = -0.22;
+    this.root.position.y = 0.12;
     this.scene.add(this.root);
 
     this._buildAuraRings();
@@ -149,7 +149,7 @@ export class Bunny3D {
       metalness: 0.3,
     });
     this.chestGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), this.gemMat);
-    this.chestGem.position.set(0, 0.17, 0.48);
+    this.chestGem.position.set(0, 0.14, 0.57);
     this.chestGem.scale.set(0.95, 1.15, 0.7);
     this.body.add(this.chestGem);
 
@@ -215,14 +215,15 @@ export class Bunny3D {
     }
 
     // Soft puffy cheeks + rosy blush
-    for (const x of [-0.29, 0.29]) {
-      const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.23, 20, 18), fur);
-      cheek.position.set(x, -0.14, 0.39);
+    for (const x of [-0.27, 0.27]) {
+      const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.185, 20, 18), fur);
+      cheek.scale.set(1.08, 0.88, 0.82);
+      cheek.position.set(x, -0.14, 0.35);
       this.head.add(cheek);
 
-      const blush = new THREE.Mesh(new THREE.CircleGeometry(0.125, 22), this.blushMat);
-      blush.position.set(x * 1.18, -0.11, 0.565);
-      blush.rotation.y = x < 0 ? -0.36 : 0.36;
+      const blush = new THREE.Mesh(new THREE.CircleGeometry(0.115, 22), this.blushMat);
+      blush.position.set(x * 1.15, -0.10, 0.535);
+      blush.rotation.y = x < 0 ? -0.34 : 0.34;
       this.head.add(blush);
     }
 
@@ -297,10 +298,10 @@ export class Bunny3D {
       this.head.add(eg);
       this.eyeGroups.push(eg);
 
-      // Expressive eyebrow
-      const brow = new THREE.Mesh(new THREE.CapsuleGeometry(0.022, 0.11, 6, 10), browMat);
-      brow.rotation.z = Math.PI / 2 - side * 0.12;
-      brow.position.set(side * 0.22, 0.255, 0.49);
+      // Soft friendly eyebrow
+      const brow = new THREE.Mesh(new THREE.CapsuleGeometry(0.017, 0.08, 6, 10), browMat);
+      brow.rotation.z = Math.PI / 2 - side * 0.05;
+      brow.position.set(side * 0.21, 0.285, 0.485);
       this.head.add(brow);
       this.brows.push(brow);
     }
@@ -309,21 +310,17 @@ export class Bunny3D {
     this.ears = [];
     for (const side of [-1, 1]) {
       const pivot = new THREE.Group();
-      pivot.position.set(side * 0.25, 0.47, -0.02);
+      pivot.position.set(side * 0.24, 0.45, -0.02);
 
-      const outer = new THREE.Mesh(new THREE.SphereGeometry(0.168, 22, 20), fur);
-      outer.scale.set(0.84, 2.86, 0.56);
-      outer.position.y = 0.46;
+      const outer = new THREE.Mesh(new THREE.SphereGeometry(0.165, 22, 20), fur);
+      outer.scale.set(0.84, 2.75, 0.54);
+      outer.position.y = 0.44;
 
       const inner = new THREE.Mesh(new THREE.SphereGeometry(0.112, 18, 16), innerEar);
-      inner.scale.set(0.76, 2.38, 0.34);
-      inner.position.set(0, 0.45, 0.048);
+      inner.scale.set(0.76, 2.28, 0.42);
+      inner.position.set(0, 0.43, 0.062);
 
-      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.072, 12, 10), innerEar);
-      tip.scale.set(0.9, 0.72, 0.55);
-      tip.position.set(0, 0.9, 0.022);
-
-      pivot.add(outer, inner, tip);
+      pivot.add(outer, inner);
       this.head.add(pivot);
       this.ears.push(pivot);
     }
@@ -536,8 +533,8 @@ export class Bunny3D {
     const browLift = isListening || this.mood === 'curious' || this.mood === 'excited'
       ? 0.035
       : (isSpeaking ? this.smoothVoice * 0.025 : 0);
-    this.brows[0].position.y = 0.255 + browLift;
-    this.brows[1].position.y = 0.255 + browLift;
+    this.brows[0].position.y = 0.275 + browLift;
+    this.brows[1].position.y = 0.275 + browLift;
 
     // ---- Blinking ----
     this.blinkTimer -= dt;
@@ -648,8 +645,8 @@ export class Bunny3D {
     this.camera.aspect = w / h;
     // Automatically frame the bunny generously on both narrow mobile screens and wide desktops
     const aspect = w / h;
-    this.camera.position.z = aspect < 0.75 ? 6.2 : (aspect < 1.0 ? 5.6 : 5.0);
-    this.camera.position.y = aspect < 0.75 ? 0.25 : 0.42;
+    this.camera.position.z = aspect < 0.75 ? 6.8 : (aspect < 1.0 ? 6.2 : 5.85);
+    this.camera.position.y = aspect < 0.75 ? 0.22 : 0.35;
     this.camera.updateProjectionMatrix();
   }
 }

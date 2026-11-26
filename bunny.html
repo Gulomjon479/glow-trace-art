@@ -3,311 +3,1423 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Jonli Quyon — Suhbatdosh AI Do'st</title>
+  <title>Quvonch AI — Jonli Ovozli Quyon</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="fx/fx.css?v=1" />
-  <script src="fx/nav.js?v=1"></script>
+  <link rel="stylesheet" href="fx/fx.css?v=2" />
+  <script src="fx/nav.js?v=2"></script>
   <script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.169.0/build/three.module.js" } }</script>
   <style>
-    body.bunny-page {
-      margin: 0; min-height: 100dvh;
-      background: radial-gradient(circle at 30% 25%, #1d1238 0%, #090614 65%, #04030a 100%);
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      overflow: hidden;
+      background: #060412;
       color: #eef2ff;
       font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-      display: flex; flex-direction: column; overflow-x: hidden;
     }
-    .bunny-shell {
-      flex: 1; width: 100%; max-width: 1020px; margin: 0 auto;
-      padding: 14px; display: grid; grid-template-columns: 400px 1fr;
-      gap: 16px; align-items: start; box-sizing: border-box;
+
+    /* Fullscreen Gemini-Live Cosmic Stage */
+    .live-stage {
+      position: fixed;
+      top: var(--nav-h, 50px);
+      left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(139, 92, 246, 0.24) 0%, rgba(15, 10, 34, 0.92) 52%, #04030c 100%);
+      transition: background 0.6s ease;
     }
-    .bunny-stage-card {
-      position: relative; width: 100%; border-radius: 24px;
-      background: radial-gradient(circle at 50% 42%, rgba(139,92,246,0.22), rgba(15,11,30,0.85) 72%);
-      border: 1px solid rgba(190,200,255,0.18);
-      box-shadow: 0 20px 50px rgba(0,0,0,0.45), inset 0 0 40px rgba(167,139,250,0.1);
-      overflow: hidden; cursor: pointer;
+    .live-stage[data-state="listening"] {
+      background:
+        radial-gradient(circle at 50% 42%, rgba(56, 189, 248, 0.28) 0%, rgba(10, 18, 38, 0.92) 52%, #030612 100%);
     }
-    #bunnyCanvas { width: 100%; height: 420px; display: block; }
-    .bunny-top-pill {
-      position: absolute; top: 11px; left: 11px; right: 11px;
-      display: flex; justify-content: space-between; align-items: center; pointer-events: none;
+    .live-stage[data-state="thinking"] {
+      background:
+        radial-gradient(circle at 50% 42%, rgba(245, 158, 11, 0.22) 0%, rgba(22, 13, 38, 0.92) 52%, #060410 100%);
     }
-    .bunny-name-badge {
-      padding: 6px 12px; border-radius: 999px;
-      background: rgba(10,8,22,0.72); border: 1px solid rgba(190,200,255,0.22);
-      font-size: 13px; font-weight: 600;
-      display: inline-flex; align-items: center; gap: 6px;
+    .live-stage[data-state="speaking"] {
+      background:
+        radial-gradient(circle at 50% 42%, rgba(236, 72, 153, 0.26) 0%, rgba(24, 10, 38, 0.92) 52%, #070310 100%);
     }
-    .bunny-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; }
-    .bunny-sleep-dot { background: #818cf8; box-shadow: 0 0 8px #818cf8; }
-    .bunny-voice-btn {
-      pointer-events: auto; border: 1px solid rgba(190,200,255,0.25);
-      background: rgba(10,8,22,0.75); color: #fff;
-      border-radius: 999px; padding: 6px 11px; font-size: 12px; cursor: pointer;
+
+    #bunnyCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
     }
-    .bunny-actions-bar {
-      padding: 10px 10px 12px; display: flex; flex-wrap: wrap; gap: 7px; justify-content: center;
-      background: linear-gradient(0deg, rgba(10,8,22,0.85), transparent);
+
+    /* Minimal Top HUD */
+    .top-hud {
+      position: absolute;
+      top: 14px; left: 14px; right: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      z-index: 20;
+      pointer-events: none;
     }
-    .bunny-act-btn {
-      border: 1px solid rgba(200,210,255,0.22); background: rgba(14,11,28,0.82);
-      color: #eef2ff; border-radius: 999px; padding: 7px 13px;
-      font-size: 12.5px; font-weight: 600; cursor: pointer;
-      transition: transform 0.14s, border-color 0.18s;
+    .status-pill {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 15px;
+      border-radius: 999px;
+      background: rgba(12, 10, 28, 0.62);
+      border: 1px solid rgba(196, 206, 255, 0.18);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      font-size: 13.5px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
     }
-    .bunny-act-btn:hover { border-color: rgba(216,180,254,0.65); background: rgba(80,40,120,0.4); }
-    .bunny-act-btn:active { transform: scale(0.94); }
-    .bunny-chat-card {
-      border-radius: 24px; background: rgba(14,11,28,0.84);
-      border: 1px solid rgba(190,200,255,0.16);
-      display: flex; flex-direction: column; overflow: hidden;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
-      height: 540px;
-    }
-    .bunny-chat-head {
-      padding: 13px 16px; border-bottom: 1px solid rgba(190,200,255,0.12);
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .bunny-chat-head h2 { margin: 0; font-size: 15px; }
-    .bunny-mood-tag {
-      font-size: 12px; color: #c4b5fd;
-      background: rgba(139,92,246,0.18); padding: 4px 10px; border-radius: 999px;
+    .state-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #a78bfa;
+      box-shadow: 0 0 12px #a78bfa;
       transition: all 0.3s ease;
     }
-    .bunny-messages { flex: 1; overflow-y: auto; padding: 13px; display: flex; flex-direction: column; gap: 9px; }
-    .bunny-messages::-webkit-scrollbar { width: 4px; }
-    .bunny-messages::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.4); border-radius: 4px; }
-    .b-msg {
-      max-width: 86%; padding: 10px 14px; border-radius: 16px;
-      font-size: 14px; line-height: 1.5; animation: popIn 0.2s ease;
+    .live-stage[data-state="listening"] .state-dot { background: #38bdf8; box-shadow: 0 0 14px #38bdf8; }
+    .live-stage[data-state="thinking"]  .state-dot { background: #fbbf24; box-shadow: 0 0 14px #fbbf24; }
+    .live-stage[data-state="speaking"]  .state-dot { background: #f472b6; box-shadow: 0 0 14px #f472b6; }
+    .status-sub {
+      font-size: 12px;
+      font-weight: 500;
+      color: #a5b4fc;
+      padding-left: 6px;
+      border-left: 1px solid rgba(255, 255, 255, 0.14);
     }
-    @keyframes popIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
-    .b-msg.bunny {
-      align-self: flex-start;
-      background: linear-gradient(135deg, rgba(139,92,246,0.22), rgba(59,130,246,0.18));
-      border: 1px solid rgba(196,181,253,0.25); border-bottom-left-radius: 4px;
+
+    .hud-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
     }
-    .b-msg.user {
-      align-self: flex-end;
-      background: linear-gradient(135deg, rgba(236,72,153,0.26), rgba(168,85,247,0.26));
-      border: 1px solid rgba(244,114,182,0.25); border-bottom-right-radius: 4px;
+    .hud-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      border: 1px solid rgba(196, 206, 255, 0.2);
+      background: rgba(12, 10, 28, 0.64);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: #eef2ff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
-    .b-msg.typing { font-style: italic; opacity: 0.65; }
-    .bunny-input-row {
-      padding: 10px 11px; border-top: 1px solid rgba(190,200,255,0.12);
-      display: flex; gap: 7px; align-items: center; background: rgba(8,6,18,0.65);
+    .hud-btn:hover { border-color: rgba(216, 180, 254, 0.6); background: rgba(45, 26, 86, 0.65); }
+    .hud-btn:active { transform: scale(0.95); }
+    .kb-count {
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
     }
-    .bunny-input-row input {
-      flex: 1; background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(190,200,255,0.2); border-radius: 14px;
-      padding: 10px 13px; color: #fff; font-size: 14px; outline: none;
+
+    /* Learned Memory Toast */
+    .learn-toast {
+      position: absolute;
+      top: 68px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      z-index: 25;
+      padding: 9px 16px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.26), rgba(56, 189, 248, 0.26));
+      border: 1px solid rgba(52, 211, 153, 0.55);
+      backdrop-filter: blur(14px);
+      color: #d1fae5;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.35s ease;
+      max-width: 90%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .bunny-input-row input:focus { border-color: rgba(196,181,253,0.65); }
-    .bunny-send-btn, .bunny-mic-btn {
-      border: none; border-radius: 14px; padding: 10px 14px;
-      font-weight: 700; font-size: 14px; cursor: pointer; color: #fff;
+    .learn-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Bottom Gemini-Live Floating Caption + Controls */
+    .bottom-dock {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      padding: 12px 16px calc(22px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      z-index: 20;
+      background: linear-gradient(0deg, rgba(5, 3, 14, 0.92) 0%, rgba(5, 3, 14, 0.52) 55%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .live-caption-wrap {
+      width: min(640px, 94%);
+      min-height: 44px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      text-align: center;
+      pointer-events: auto;
+    }
+    .user-heard-line {
+      font-size: 13px;
+      color: #7dd3fc;
+      opacity: 0.9;
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-height: 18px;
+    }
+    .bunny-subtitle {
+      padding: 10px 18px;
+      border-radius: 18px;
+      background: rgba(14, 11, 30, 0.66);
+      border: 1px solid rgba(196, 181, 253, 0.2);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      font-size: 15px;
+      line-height: 1.48;
+      color: #f5f3ff;
+      max-height: 112px;
+      overflow-y: auto;
+      transition: opacity 0.3s ease;
+    }
+    .bunny-subtitle:empty { display: none; }
+
+    /* Optional discreet quick-type bar (hidden unless user taps keyboard icon) */
+    .quick-type-bar {
+      width: min(520px, 92%);
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: rgba(16, 13, 34, 0.88);
+      border: 1px solid rgba(196, 181, 253, 0.32);
+      backdrop-filter: blur(16px);
+      pointer-events: auto;
+    }
+    .quick-type-bar.open { display: flex; }
+    .quick-type-bar input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: #fff;
+      font-size: 14.5px;
+      padding: 8px 12px;
+      outline: none;
+    }
+    .quick-type-bar button {
+      border: none;
+      width: 38px; height: 38px;
+      border-radius: 50%;
       background: linear-gradient(135deg, #ec4899, #8b5cf6);
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
     }
-    .bunny-mic-btn {
-      background: rgba(255,255,255,0.09); border: 1px solid rgba(190,200,255,0.22); padding: 10px 12px;
+
+    /* Gemini Live Control Orb Row */
+    .live-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      pointer-events: auto;
     }
-    .bunny-mic-btn.listening { background: rgba(239,68,68,0.45); border-color: #f87171; }
-    @media (max-width: 860px) {
-      .bunny-shell { grid-template-columns: 1fr; padding: 8px; gap: 9px; }
-      #bunnyCanvas { height: 280px; }
-      .bunny-chat-card { height: calc(100dvh - var(--nav-h) - 330px); min-height: 240px; }
+
+    .side-orb {
+      width: 50px; height: 50px;
+      border-radius: 50%;
+      border: 1px solid rgba(196, 206, 255, 0.22);
+      background: rgba(18, 15, 38, 0.78);
+      backdrop-filter: blur(12px);
+      color: #e2e8f0;
+      font-size: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .side-orb:hover { border-color: rgba(216, 180, 254, 0.6); transform: scale(1.06); }
+    .side-orb:active { transform: scale(0.94); }
+    .side-orb.danger {
+      background: rgba(239, 68, 68, 0.24);
+      border-color: rgba(248, 113, 113, 0.6);
+      color: #fecaca;
+    }
+    .side-orb.active {
+      background: rgba(139, 92, 246, 0.35);
+      border-color: rgba(196, 181, 253, 0.7);
+      color: #fff;
+    }
+
+    .hero-live-btn {
+      position: relative;
+      width: 78px; height: 78px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      font-size: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 52%, #ec4899 100%);
+      box-shadow: 0 0 34px rgba(168, 85, 247, 0.55), inset 0 0 18px rgba(255, 255, 255, 0.25);
+      transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.3s ease;
+    }
+    .hero-live-btn::before {
+      content: "";
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 2px solid rgba(168, 85, 247, 0.45);
+      opacity: 0;
+      transform: scale(0.9);
+      transition: opacity 0.25s;
+    }
+    .hero-live-btn:active { transform: scale(0.93); }
+
+    .live-stage[data-state="listening"] .hero-live-btn {
+      background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 55%, #6366f1 100%);
+      box-shadow: 0 0 42px rgba(56, 189, 248, 0.72), inset 0 0 18px rgba(255, 255, 255, 0.3);
+    }
+    .live-stage[data-state="listening"] .hero-live-btn::before {
+      border-color: rgba(56, 189, 248, 0.7);
+      opacity: 1;
+      animation: pulseRing 1.4s infinite ease-out;
+    }
+    .live-stage[data-state="thinking"] .hero-live-btn {
+      background: linear-gradient(135deg, #f59e0b 0%, #a855f7 100%);
+      box-shadow: 0 0 38px rgba(245, 158, 11, 0.6);
+    }
+    .live-stage[data-state="speaking"] .hero-live-btn {
+      background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+      box-shadow: 0 0 42px rgba(236, 72, 153, 0.72);
+    }
+    .live-stage[data-state="speaking"] .hero-live-btn::before {
+      border-color: rgba(244, 114, 182, 0.7);
+      opacity: 1;
+      animation: pulseRing 1.1s infinite ease-out;
+    }
+
+    @keyframes pulseRing {
+      0%   { transform: scale(0.96); opacity: 0.85; }
+      100% { transform: scale(1.42); opacity: 0; }
+    }
+
+    .live-hint {
+      font-size: 12px;
+      color: #a5b4fc;
+      opacity: 0.85;
+      letter-spacing: 0.2px;
+    }
+
+    /* Slide-Over Drawers (Knowledge Vault & Settings) */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: rgba(3, 2, 10, 0.72);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal-card {
+      width: min(560px, 100%);
+      max-height: 88dvh;
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(20, 15, 42, 0.98), rgba(10, 8, 22, 0.98));
+      border: 1px solid rgba(196, 181, 253, 0.26);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(196, 181, 253, 0.14);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-head h3 { margin: 0; font-size: 16.5px; display: flex; align-items: center; gap: 8px; }
+    .modal-close {
+      border: none;
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      font-size: 17px;
+      cursor: pointer;
+    }
+    .modal-body {
+      padding: 16px 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .iq-card {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(56, 189, 248, 0.12));
+      border: 1px solid rgba(196, 181, 253, 0.24);
+    }
+    .iq-top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+    .iq-bar { height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+    .iq-fill { height: 100%; width: 12%; border-radius: 999px; background: linear-gradient(90deg, #38bdf8, #a855f7, #ec4899); transition: width 0.4s ease; }
+
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-group label { font-size: 12.5px; font-weight: 600; color: #c4b5fd; }
+    .field-input, .field-textarea, .field-select {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(196, 206, 255, 0.22);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      padding: 10px 13px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+    }
+    .field-textarea { min-height: 92px; resize: vertical; line-height: 1.45; }
+    .field-select option { background: #120d26; color: #fff; }
+    .field-input:focus, .field-textarea:focus, .field-select:focus { border-color: rgba(196, 181, 253, 0.65); }
+
+    .btn-row { display: flex; gap: 9px; flex-wrap: wrap; }
+    .primary-btn {
+      flex: 1;
+      border: none;
+      border-radius: 14px;
+      padding: 11px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    }
+    .secondary-btn {
+      border: 1px solid rgba(196, 206, 255, 0.26);
+      border-radius: 14px;
+      padding: 11px 14px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #e2e8f0;
+      background: rgba(255, 255, 255, 0.06);
+      cursor: pointer;
+    }
+
+    .kb-list { display: flex; flex-direction: column; gap: 8px; }
+    .kb-item {
+      padding: 11px 13px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(196, 206, 255, 0.14);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .kb-item-main { flex: 1; min-width: 0; }
+    .kb-item-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #a5b4fc;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .kb-badge {
+      font-size: 10.5px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(52, 211, 153, 0.2);
+      color: #6ee7b7;
+    }
+    .kb-item-text { font-size: 13.5px; color: #eef2ff; line-height: 1.42; word-break: break-word; }
+    .kb-del {
+      border: none;
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border-radius: 10px;
+      padding: 6px 9px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .preset-card {
+      padding: 11px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(196, 206, 255, 0.18);
+      background: rgba(255, 255, 255, 0.04);
+      color: #eef2ff;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-card.active {
+      border-color: #c084fc;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.22));
+      box-shadow: 0 0 18px rgba(168, 85, 247, 0.25);
+    }
+    .preset-card strong { display: block; font-size: 13.5px; margin-bottom: 2px; }
+    .preset-card span { font-size: 11.5px; color: #cbd5e1; }
+    .tiny-note { font-size: 12px; color: #94a3b8; line-height: 1.45; }
+
+    @media (max-width: 540px) {
+      .status-pill { padding: 7px 11px; font-size: 12.5px; }
+      .hud-btn { padding: 7px 10px; font-size: 12px; }
+      .bunny-subtitle { font-size: 14px; padding: 9px 14px; }
+      .hero-live-btn { width: 72px; height: 72px; font-size: 27px; }
+      .preset-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
-<body class="bunny-page" data-section="bunny">
-  <div class="bunny-shell">
-    <div class="bunny-stage-card" id="bunnyStage">
-      <canvas id="bunnyCanvas"></canvas>
-      <div class="bunny-top-pill">
-        <span class="bunny-name-badge"><span class="bunny-dot" id="statusDot"></span>Quvonch 🐰</span>
-        <button class="bunny-voice-btn" id="voiceToggleBtn" type="button">🔊 Ovoz</button>
+<body data-section="bunny">
+  <div class="live-stage" id="liveStage" data-state="idle">
+    <canvas id="bunnyCanvas"></canvas>
+
+    <!-- Minimal Floating Top Bar -->
+    <div class="top-hud">
+      <div class="status-pill">
+        <span class="state-dot"></span>
+        <span id="bunnyNameLabel">Quvonch AI</span>
+        <span class="status-sub" id="stateLabel">Jonli suhbatga tayyor</span>
       </div>
-      <div class="bunny-actions-bar">
-        <button class="bunny-act-btn" id="carrotBtn"   type="button">🥕 Sabzi</button>
-        <button class="bunny-act-btn" id="petBtn"      type="button">🤍 Erkalash</button>
-        <button class="bunny-act-btn" id="danceBtn"    type="button">💃 Raqsga tush</button>
-        <button class="bunny-act-btn" id="waveBtn"     type="button">👋 Salom ayt</button>
-        <button class="bunny-act-btn" id="sleepBtn"    type="button">😴 Uxlatish</button>
-        <button class="bunny-act-btn" id="wakeBtn"     type="button">☀️ Uyg'otish</button>
-        <button class="bunny-act-btn" id="askMeBtn"    type="button">🎲 Qiziq savol</button>
-        <button class="bunny-act-btn" id="jokeBtn"     type="button">😄 Hazil ayt</button>
-        <button class="bunny-act-btn" id="factBtn"     type="button">🧠 Qiziq fakt</button>
-        <button class="bunny-act-btn" id="confessBtn"  type="button">🌸 Sir aytish</button>
+      <div class="hud-actions">
+        <button class="hud-btn" id="openKnowledgeBtn" type="button" title="Quyonchaga bilim o‘rgatish">
+          <span>🧠 Bilim</span>
+          <span class="kb-count" id="kbCountBadge">0</span>
+        </button>
+        <button class="hud-btn" id="openSettingsBtn" type="button" title="Ovoz va AI sozlamalari">⚙️</button>
       </div>
     </div>
 
-    <div class="bunny-chat-card">
-      <div class="bunny-chat-head">
-        <h2>💬 Quvonch bilan suhbat</h2>
-        <span class="bunny-mood-tag" id="moodTag">✨ Quvnoq</span>
+    <div class="learn-toast" id="learnToast">✨ Yangi bilim eslab qolindi!</div>
+
+    <!-- Gemini-Live Style Bottom Voice Controls -->
+    <div class="bottom-dock">
+      <div class="live-caption-wrap">
+        <div class="user-heard-line" id="userHeardLine"></div>
+        <div class="bunny-subtitle" id="bunnySubtitle"></div>
       </div>
-      <div class="bunny-messages" id="chatBox"></div>
-      <form class="bunny-input-row" id="chatForm">
-        <button class="bunny-mic-btn" id="micBtn" type="button" title="Ovoz bilan gapirish">🎤</button>
-        <input id="chatInput" type="text" placeholder="Quvonchga biror narsa yozing..." autocomplete="off" />
-        <button class="bunny-send-btn" type="submit">➤</button>
+
+      <form class="quick-type-bar" id="quickTypeForm">
+        <input id="quickTypeInput" type="text" placeholder="Savol yoki yangi bilim yozing..." autocomplete="off" />
+        <button type="submit" aria-label="Yuborish">➤</button>
       </form>
+
+      <div class="live-controls">
+        <button class="side-orb" id="toggleTypeBtn" type="button" title="Yozib so‘rash">⌨️</button>
+        <button class="hero-live-btn" id="heroLiveBtn" type="button" title="Jonli ovozli suhbatni boshlash">🎙️</button>
+        <button class="side-orb" id="endOrMuteBtn" type="button" title="Ovozni o‘chirish / Suhbatni tugatish">🔊</button>
+      </div>
+
+      <div class="live-hint" id="liveHint">Mikrofonni bosing — xuddi Gemini Live kabi jonli gaplashing</div>
+    </div>
+  </div>
+
+  <!-- Knowledge Vault Drawer (Teach the Bunny Unlimited Data!) -->
+  <div class="modal-backdrop" id="knowledgeModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>🧠 Quyoncha Bilim Bazasi</h3>
+        <button class="modal-close" data-close="knowledgeModal" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="iq-card">
+          <div class="iq-top">
+            <span id="iqLevelText">Bilim darajasi: Boshlang‘ich</span>
+            <span id="iqCountText">0 ta ma’lumot</span>
+          </div>
+          <div class="iq-bar"><div class="iq-fill" id="iqFill"></div></div>
+        </div>
+
+        <div class="field-group">
+          <label for="kbTitleInput">Mavzu nomi (ixtiyoriy)</label>
+          <input class="field-input" id="kbTitleInput" type="text" placeholder="Masalan: Mening biznesim, Tarix, Shaxsiy faktlar..." />
+        </div>
+        <div class="field-group">
+          <label for="kbContentInput">Quyonchaga yangi ma’lumot o‘rgating</label>
+          <textarea class="field-textarea" id="kbContentInput" placeholder="Istalgan ma’lumot, qoida, matn yoki bilimlarni shu yerga yozing — quyoncha hammasini eslab qoladi va ovozli suhbatda ishlatadi!"></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="primary-btn" id="saveKbBtn" type="button">✨ Bilimni saqlash</button>
+          <button class="secondary-btn" id="uploadKbFileBtn" type="button">📄 Fayl yuklash (.txt/.md)</button>
+          <input id="kbFileInput" type="file" accept=".txt,.md,.json,.csv" style="display:none" />
+        </div>
+
+        <div class="tiny-note">
+          💡 Ovozli suhbat paytida ham <b>“eslab qol...”</b> yoki o‘zingiz haqingizda yangi ma’lumot aytsangiz, quyoncha uni avtomatik shu bazaga saqlab boradi!
+        </div>
+
+        <div class="kb-list" id="kbList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal (Cartoon Voice & AI Provider) -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>⚙️ Quyoncha Ovozi va Sun’iy Intellekt</h3>
+        <button class="modal-close" data-close="settingsModal" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label>Multfilm ovoz uslubini tanlang</label>
+          <div class="preset-grid" id="voicePresetGrid">
+            <button class="preset-card active" data-preset="cartoon" type="button">
+              <strong>🐰 Multfilm Quyoncha</strong>
+              <span>Quvnoq, chiroyli Pixar uslubi</span>
+            </button>
+            <button class="preset-card" data-preset="pixar" type="button">
+              <strong>✨ Shirin Ertak</strong>
+              <span>Yumshoq va sehrli multfilm ovozi</span>
+            </button>
+            <button class="preset-card" data-preset="sardor" type="button">
+              <strong>⚡ Quvnoq Do‘st</strong>
+              <span>Energiyali yigit quyoncha ovozi</span>
+            </button>
+            <button class="preset-card" data-preset="natural" type="button">
+              <strong>🎙️ Tabiiy O‘zbekcha</strong>
+              <span>Sof tabiiy neyron ovoz</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="secondary-btn" id="testVoiceBtn" type="button" style="flex:1">🔊 Ovozni sinab ko‘rish</button>
+        </div>
+
+        <div class="field-group">
+          <label for="bunnyNameInput">Quyoncha ismi</label>
+          <input class="field-input" id="bunnyNameInput" type="text" value="Quvonch" maxlength="32" />
+        </div>
+
+        <div class="field-group">
+          <label for="customPersonaInput">Qo‘shimcha xarakter / rol (ixtiyoriy)</label>
+          <textarea class="field-textarea" id="customPersonaInput" style="min-height:66px" placeholder="Masalan: Menga ingliz tilini o‘rgatadigan do‘stona ustoz quyoncha bo‘l..."></textarea>
+        </div>
+
+        <div class="field-group">
+          <label for="geminiKeyInput">Google Gemini API kaliti (ixtiyoriy — ichki AI tayyor!)</label>
+          <input class="field-input" id="geminiKeyInput" type="password" placeholder="AIza... (bo‘sh qoldirsangiz ichki bepul AI ishlaydi)" />
+          <div class="tiny-note" id="aiStatusNote">🟢 Ichki sun’iy intellekt avtomatik ulangan. Gemini kaliti qo‘shsangiz yanada tezroq ishlaydi.</div>
+        </div>
+
+        <button class="primary-btn" id="saveSettingsBtn" type="button">💾 Sozlamalarni saqlash</button>
+      </div>
     </div>
   </div>
 
   <script type="module">
     import { Bunny3D } from './fx/bunny3d.js';
 
-    try { const tg = window.Telegram?.WebApp; if (tg) { tg.ready(); tg.expand(); } } catch(e) {}
+    try {
+      const tg = window.Telegram?.WebApp;
+      if (tg) { tg.ready(); tg.expand(); }
+    } catch (e) {}
 
-    const canvas  = document.getElementById('bunnyCanvas');
-    const stage   = document.getElementById('bunnyStage');
-    const chatBox = document.getElementById('chatBox');
-    const chatForm= document.getElementById('chatForm');
-    const chatInput=document.getElementById('chatInput');
-    const moodTag = document.getElementById('moodTag');
-    const voiceBtn= document.getElementById('voiceToggleBtn');
-    const micBtn  = document.getElementById('micBtn');
-    const statusDot=document.getElementById('statusDot');
+    // ---- DOM refs ----
+    const liveStage       = document.getElementById('liveStage');
+    const canvas          = document.getElementById('bunnyCanvas');
+    const bunnyNameLabel  = document.getElementById('bunnyNameLabel');
+    const stateLabel      = document.getElementById('stateLabel');
+    const kbCountBadge    = document.getElementById('kbCountBadge');
+    const learnToast      = document.getElementById('learnToast');
+    const userHeardLine   = document.getElementById('userHeardLine');
+    const bunnySubtitle   = document.getElementById('bunnySubtitle');
+    const heroLiveBtn     = document.getElementById('heroLiveBtn');
+    const endOrMuteBtn    = document.getElementById('endOrMuteBtn');
+    const toggleTypeBtn   = document.getElementById('toggleTypeBtn');
+    const quickTypeForm   = document.getElementById('quickTypeForm');
+    const quickTypeInput  = document.getElementById('quickTypeInput');
+    const liveHint        = document.getElementById('liveHint');
 
+    // Modals
+    const knowledgeModal  = document.getElementById('knowledgeModal');
+    const settingsModal   = document.getElementById('settingsModal');
+    const openKnowledgeBtn= document.getElementById('openKnowledgeBtn');
+    const openSettingsBtn = document.getElementById('openSettingsBtn');
+    const kbTitleInput    = document.getElementById('kbTitleInput');
+    const kbContentInput  = document.getElementById('kbContentInput');
+    const saveKbBtn       = document.getElementById('saveKbBtn');
+    const uploadKbFileBtn = document.getElementById('uploadKbFileBtn');
+    const kbFileInput     = document.getElementById('kbFileInput');
+    const kbList          = document.getElementById('kbList');
+    const iqLevelText     = document.getElementById('iqLevelText');
+    const iqCountText     = document.getElementById('iqCountText');
+    const iqFill          = document.getElementById('iqFill');
+    const voicePresetGrid = document.getElementById('voicePresetGrid');
+    const testVoiceBtn    = document.getElementById('testVoiceBtn');
+    const bunnyNameInput  = document.getElementById('bunnyNameInput');
+    const customPersonaInput = document.getElementById('customPersonaInput');
+    const geminiKeyInput  = document.getElementById('geminiKeyInput');
+    const aiStatusNote    = document.getElementById('aiStatusNote');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+    // ---- Identity ----
+    const params = new URLSearchParams(window.location.search);
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user || {};
+    const userId = String(tgUser.id || params.get('chat_id') || localStorage.getItem('bunny_uid') || (() => {
+      const id = 'web_' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('bunny_uid', id);
+      return id;
+    })());
+    const userName = tgUser.first_name || '';
+
+    // ---- 3D Bunny ----
     const bunny = new Bunny3D(canvas);
-    let voiceOn = true;
-    const history = [];
-    const tgUser  = window.Telegram?.WebApp?.initDataUnsafe?.user || {};
-    const userName= tgUser.first_name || '';
-
-    const MOOD_LABELS = {
-      happy:'✨ Quvnoq', curious:'🧐 Qiziquvchan', excited:'🤩 Hayajonda',
-      laughing:'😄 Kulmoqda', shy:'🥰 Uyatchan', thinking:'🤔 O'ylanmoqda',
-    };
-
-    // Pointer tracking → eye follow
-    window.addEventListener('pointermove', (e)=>{
-      const r = stage.getBoundingClientRect();
-      bunny.setLook(((e.clientX-r.left)/r.width-0.5)*2, ((e.clientY-r.top)/r.height-0.5)*2);
-    });
-    window.addEventListener('touchmove', (e)=>{
-      if (e.touches[0]) {
-        const r = stage.getBoundingClientRect();
-        bunny.setLook(((e.touches[0].clientX-r.left)/r.width-0.5)*2,
-                      ((e.touches[0].clientY-r.top)/r.height-0.5)*2);
-      }
-    }, { passive:true });
-
     let lastT = performance.now();
-    (function loop(now){ requestAnimationFrame(loop); bunny.update(Math.min(0.05,(now-lastT)/1000), now*.001); lastT=now; })();
+    (function renderLoop(now) {
+      requestAnimationFrame(renderLoop);
+      const dt = Math.min(0.05, (now - lastT) / 1000);
+      lastT = now;
+      updateAudioMeters();
+      bunny.update(dt, now * 0.001);
+    })(lastT);
 
-    // ---- TTS ----
-    function speakText(text){
-      bunny.speaking = true;
-      const clean = text.replace(/[\u{1F300}-\u{1FAFF}🐰🥕💬🤍]/gu,'').trim();
-      const ms = Math.min(5000, Math.max(900, clean.length*50));
-      if (voiceOn && 'speechSynthesis' in window && clean){
-        try{
-          speechSynthesis.cancel();
-          const u = new SpeechSynthesisUtterance(clean);
-          u.lang='uz-UZ'; u.pitch=1.3; u.rate=1.05;
-          u.onend=()=>{ bunny.speaking=false; };
-          u.onerror=()=>{ bunny.speaking=false; };
-          speechSynthesis.speak(u);
-          setTimeout(()=>{ bunny.speaking=false; }, ms+1800);
-          return;
-        } catch(e){}
+    window.addEventListener('pointermove', (e) => {
+      bunny.setLook((e.clientX / window.innerWidth - 0.5) * 2, (e.clientY / window.innerHeight - 0.5) * 2);
+    });
+    window.addEventListener('touchmove', (e) => {
+      const t = e.touches?.[0];
+      if (t) bunny.setLook((t.clientX / window.innerWidth - 0.5) * 2, (t.clientY / window.innerHeight - 0.5) * 2);
+    }, { passive: true });
+
+    // ---- App State ----
+    let uiState = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking'
+    let liveSessionActive = false;
+    let voiceMuted = false;
+    let selectedPreset = localStorage.getItem('bunny_voice_preset') || 'cartoon';
+    let bunnyName = 'Quvonch';
+    const history = [];
+
+    // Audio playback + Real-Time Web Audio Analyser for Lip-Sync
+    let audioCtx = null;
+    let voiceAnalyser = null;
+    let voiceDataArr = null;
+    let activeAudioSource = null;
+    let activeAudioEl = null;
+    let activeAbortCtrl = null;
+
+    // Mic live volume meter (for Gemini-Live listening glow!)
+    let micStream = null;
+    let micAnalyser = null;
+    let micDataArr = null;
+
+    // Speech Recognition (Web Speech API) + MediaRecorder fallback
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let recRestartTimer = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let isRecordingFallback = false;
+    let hasGeminiBackend = false;
+
+    function ensureAudioCtx() {
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
       }
-      setTimeout(()=>{ bunny.speaking=false; }, ms);
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx;
     }
 
-    // ---- Chat UI ----
-    let typingEl = null;
-    function addMsg(who, text){
-      if (typingEl){ typingEl.remove(); typingEl=null; }
-      const d = document.createElement('div');
-      d.className='b-msg '+who;
-      d.textContent=text;
-      chatBox.appendChild(d);
-      chatBox.scrollTop=chatBox.scrollHeight;
-      return d;
-    }
-    function showTyping(){
-      if (typingEl) return;
-      typingEl = document.createElement('div');
-      typingEl.className='b-msg bunny typing';
-      typingEl.textContent='🐰 Yozmoqda…';
-      chatBox.appendChild(typingEl);
-      chatBox.scrollTop=chatBox.scrollHeight;
-    }
-    function setMoodUI(mood){
-      bunny.setMood(mood);
-      moodTag.textContent = MOOD_LABELS[mood] || MOOD_LABELS.happy;
-      statusDot.className = 'bunny-dot' + (mood==='shy'?' bunny-sleep-dot':'');
+    function updateAudioMeters() {
+      if (uiState === 'speaking' && voiceAnalyser && voiceDataArr) {
+        voiceAnalyser.getByteTimeDomainData(voiceDataArr);
+        let sum = 0;
+        for (let i = 0; i < voiceDataArr.length; i++) {
+          const v = (voiceDataArr[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / voiceDataArr.length);
+        bunny.setVoiceLevel(Math.min(1, rms * 4.2));
+      } else if (uiState !== 'speaking') {
+        bunny.setVoiceLevel(0);
+      }
+
+      if (uiState === 'listening' && micAnalyser && micDataArr) {
+        micAnalyser.getByteTimeDomainData(micDataArr);
+        let sum = 0;
+        for (let i = 0; i < micDataArr.length; i++) {
+          const v = (micDataArr[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / micDataArr.length);
+        bunny.setMicLevel(Math.min(1, rms * 4.5));
+      } else {
+        bunny.setMicLevel(0);
+      }
     }
 
-    async function sendToBunny(message, action=''){
-      if (message){ addMsg('user',message); history.push({role:'user',text:message}); }
-      showTyping();
-      setMoodUI('thinking');
-      try{
-        const res = await fetch('/api/bunny-chat',{
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ message, action, history:history.slice(-12), userName }),
+    function setUIState(nextState, customLabel = '') {
+      uiState = nextState;
+      liveStage.setAttribute('data-state', nextState);
+      bunny.setState(nextState);
+
+      const labels = {
+        idle: liveSessionActive ? 'Suhbat pauzada' : 'Jonli suhbatga tayyor',
+        listening: 'Sizni tinglayapman...',
+        thinking: 'O‘ylayapman...',
+        speaking: 'Gapiryapman...',
+      };
+      stateLabel.textContent = customLabel || labels[nextState] || labels.idle;
+
+      if (nextState === 'listening') {
+        heroLiveBtn.textContent = '⏹';
+        liveHint.textContent = 'Gapiring — tugatsangiz quyoncha darhol javob beradi';
+      } else if (nextState === 'thinking') {
+        heroLiveBtn.textContent = '✨';
+        liveHint.textContent = 'Sun’iy intellekt javob tayyorlamoqda...';
+      } else if (nextState === 'speaking') {
+        heroLiveBtn.textContent = '🎙️';
+        liveHint.textContent = 'Bo‘lib qo‘yish uchun quyonchani yoki mikrofonni bosing';
+      } else {
+        heroLiveBtn.textContent = '🎙️';
+        liveHint.textContent = 'Mikrofonni bosing — xuddi Gemini Live kabi jonli gaplashing';
+      }
+
+      if (liveSessionActive) {
+        endOrMuteBtn.textContent = '✕';
+        endOrMuteBtn.classList.add('danger');
+        endOrMuteBtn.title = 'Jonli suhbatni tugatish';
+      } else {
+        endOrMuteBtn.textContent = voiceMuted ? '🔇' : '🔊';
+        endOrMuteBtn.classList.remove('danger');
+        endOrMuteBtn.title = voiceMuted ? 'Ovozni yoqish' : 'Ovozni o‘chirish';
+      }
+    }
+
+    function showLearnToast(facts) {
+      if (!facts || !facts.length) return;
+      learnToast.textContent = `✨ Yangi bilim o‘rgandim: ${facts[0]}`;
+      learnToast.classList.add('show');
+      bunny.triggerLearnBurst();
+      setTimeout(() => learnToast.classList.remove('show'), 4200);
+    }
+
+    // ---- Stop / Interrupt Speech ----
+    function stopSpeaking() {
+      if (activeAbortCtrl) {
+        try { activeAbortCtrl.abort(); } catch (e) {}
+        activeAbortCtrl = null;
+      }
+      if (activeAudioSource) {
+        try { activeAudioSource.stop(); activeAudioSource.disconnect(); } catch (e) {}
+        activeAudioSource = null;
+      }
+      if (activeAudioEl) {
+        try { activeAudioEl.pause(); activeAudioEl.src = ''; } catch (e) {}
+        activeAudioEl = null;
+      }
+      try { window.speechSynthesis?.cancel(); } catch (e) {}
+      bunny.setVoiceLevel(0);
+    }
+
+    // ---- Cartoon Neural Voice Playback with Real-Time Lip-Sync ----
+    async function speakCartoonVoice(text, presetOverride = '') {
+      stopSpeaking();
+      if (!text) return;
+      if (voiceMuted) {
+        setUIState(liveSessionActive ? 'listening' : 'idle');
+        if (liveSessionActive) scheduleResumeListening(350);
+        return;
+      }
+
+      setUIState('speaking');
+      const ctrl = new AbortController();
+      activeAbortCtrl = ctrl;
+
+      try {
+        const resp = await fetch('/api/bunny-tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, preset: presetOverride || selectedPreset }),
+          signal: ctrl.signal,
         });
-        const data = await res.json();
-        const reply = data.reply || 'Voy, quloqlarim qimirlab ketdi! Yana bir marta yozib ko'ring 🐰';
-        setMoodUI(data.mood||'happy');
-        addMsg('bunny', reply);
-        history.push({role:'bunny',text:reply});
-        speakText(reply);
-      } catch(e){
-        addMsg('bunny','Voy, internetim biroz siltandi — qayta yozib ko'ring! 🐰');
-        setMoodUI('curious');
+        if (!resp.ok) throw new Error('TTS HTTP ' + resp.status);
+        const arrayBuf = await resp.arrayBuffer();
+        if (ctrl.signal.aborted) return;
+
+        const ctx = ensureAudioCtx();
+        if (ctx) {
+          const decoded = await ctx.decodeAudioData(arrayBuf.slice(0));
+          if (ctrl.signal.aborted) return;
+
+          const src = ctx.createBufferSource();
+          src.buffer = decoded;
+          voiceAnalyser = ctx.createAnalyser();
+          voiceAnalyser.fftSize = 256;
+          voiceDataArr = new Uint8Array(voiceAnalyser.frequencyBinCount);
+
+          src.connect(voiceAnalyser);
+          voiceAnalyser.connect(ctx.destination);
+          activeAudioSource = src;
+
+          await new Promise((resolve) => {
+            src.onended = () => {
+              if (activeAudioSource === src) activeAudioSource = null;
+              resolve();
+            };
+            src.start(0);
+          });
+        } else {
+          // Fallback HTMLAudioElement
+          const blob = new Blob([arrayBuf], { type: 'audio/mpeg' });
+          const url = URL.createObjectURL(blob);
+          const el = new Audio(url);
+          activeAudioEl = el;
+          const fakeWave = setInterval(() => {
+            if (uiState === 'speaking') bunny.setVoiceLevel(0.35 + Math.random() * 0.55);
+          }, 90);
+          await new Promise((resolve) => {
+            el.onended = el.onerror = () => {
+              clearInterval(fakeWave);
+              URL.revokeObjectURL(url);
+              if (activeAudioEl === el) activeAudioEl = null;
+              resolve();
+            };
+            el.play().catch(() => {
+              clearInterval(fakeWave);
+              resolve();
+            });
+          });
+        }
+      } catch (err) {
+        if (ctrl.signal.aborted) return;
+        // Fallback browser speechSynthesis only if server TTS is unreachable
+        if ('speechSynthesis' in window) {
+          await new Promise((resolve) => {
+            try {
+              const u = new SpeechSynthesisUtterance(text);
+              u.lang = 'uz-UZ';
+              u.pitch = 1.38;
+              u.rate = 1.04;
+              const sim = setInterval(() => {
+                if (uiState === 'speaking') bunny.setVoiceLevel(0.3 + Math.random() * 0.5);
+              }, 100);
+              u.onend = u.onerror = () => { clearInterval(sim); resolve(); };
+              speechSynthesis.speak(u);
+            } catch (e) { resolve(); }
+          });
+        }
+      } finally {
+        if (activeAbortCtrl === ctrl) activeAbortCtrl = null;
+        bunny.setVoiceLevel(0);
+        if (!ctrl.signal.aborted) {
+          if (liveSessionActive) {
+            scheduleResumeListening(280);
+          } else {
+            setUIState('idle');
+          }
+        }
       }
     }
 
-    // ---- Button actions ----
-    chatForm.addEventListener('submit', e=>{
+    // ---- Send Question / Audio to Real AI ----
+    let isAsking = false;
+    async function askBunny({ message = '', audioBase64 = '', audioMime = '' }) {
+      if (isAsking) return;
+      isAsking = true;
+      stopListeningHardware();
+      stopSpeaking();
+      ensureAudioCtx();
+
+      if (message) {
+        userHeardLine.textContent = `“${message}”`;
+        history.push({ role: 'user', text: message });
+      } else {
+        userHeardLine.textContent = '🎙️ Ovozingiz tahlil qilinmoqda...';
+      }
+
+      setUIState('thinking');
+
+      try {
+        const resp = await fetch('/api/bunny-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message,
+            audioBase64,
+            audioMime,
+            history: history.slice(-12),
+            userName,
+            userId,
+          }),
+        });
+        const data = await resp.json();
+        if (data.heard && !message) {
+          userHeardLine.textContent = `“${data.heard}”`;
+          history.push({ role: 'user', text: data.heard });
+        }
+
+        const reply = data.reply || 'Voy, quloqlarim chalg‘ib qoldi! Yana bir marta so‘rab ko‘r-chi!';
+        bunny.setMood(data.mood || 'happy');
+        bunnySubtitle.textContent = reply;
+        history.push({ role: 'bunny', text: reply });
+
+        if (typeof data.knowledgeCount === 'number') {
+          updateKnowledgeCounter(data.knowledgeCount);
+        }
+        if (Array.isArray(data.learned) && data.learned.length > 0) {
+          showLearnToast(data.learned);
+        }
+
+        isAsking = false;
+        await speakCartoonVoice(reply);
+      } catch (err) {
+        isAsking = false;
+        bunnySubtitle.textContent = 'Internet aloqasi biroz uzildi — yana urinib ko‘ring!';
+        setUIState('idle');
+      }
+    }
+
+    // ---- Mic Volume Visualizer Setup ----
+    async function startMicVisualizer() {
+      try {
+        if (!micStream && navigator.mediaDevices?.getUserMedia) {
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const ctx = ensureAudioCtx();
+          if (ctx) {
+            const src = ctx.createMediaStreamSource(micStream);
+            micAnalyser = ctx.createAnalyser();
+            micAnalyser.fftSize = 256;
+            micDataArr = new Uint8Array(micAnalyser.frequencyBinCount);
+            src.connect(micAnalyser);
+          }
+        }
+      } catch (e) {
+        // Fine — SpeechRecognition can still operate without visualizer
+      }
+    }
+
+    function stopMicVisualizer() {
+      if (micStream) {
+        micStream.getTracks().forEach((tr) => tr.stop());
+        micStream = null;
+        micAnalyser = null;
+        micDataArr = null;
+      }
+    }
+
+    function stopListeningHardware() {
+      clearTimeout(recRestartTimer);
+      if (recognition) {
+        try { recognition.onend = null; recognition.stop(); } catch (e) {}
+        recognition = null;
+      }
+      if (mediaRecorder && isRecordingFallback) {
+        try { mediaRecorder.stop(); } catch (e) {}
+      }
+    }
+
+    function scheduleResumeListening(delayMs = 300) {
+      clearTimeout(recRestartTimer);
+      if (!liveSessionActive) return;
+      recRestartTimer = setTimeout(() => {
+        if (liveSessionActive && uiState !== 'thinking' && uiState !== 'speaking') {
+          beginListeningTurn();
+        }
+      }, delayMs);
+    }
+
+    async function beginListeningTurn() {
+      if (!liveSessionActive) return;
+      stopSpeaking();
+      ensureAudioCtx();
+
+      if (SpeechRec) {
+        await startMicVisualizer();
+        setUIState('listening');
+        userHeardLine.textContent = '🎙️ Eshityapman...';
+
+        const rec = new SpeechRec();
+        rec.lang = 'uz-UZ';
+        rec.continuous = false;
+        rec.interimResults = true;
+        rec.maxAlternatives = 1;
+        recognition = rec;
+
+        let finalTranscript = '';
+
+        rec.onresult = (ev) => {
+          let interim = '';
+          for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            const tr = ev.results[i][0]?.transcript || '';
+            if (ev.results[i].isFinal) finalTranscript += tr + ' ';
+            else interim += tr;
+          }
+          const preview = (finalTranscript + interim).trim();
+          if (preview) userHeardLine.textContent = `“${preview}”`;
+        };
+
+        rec.onerror = (ev) => {
+          if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+            liveSessionActive = false;
+            setUIState('idle');
+            bunnySubtitle.textContent = 'Mikrofonga ruxsat berilmadi. Brauzerda mikrofon ruxsatini yoqing yoki ⌨️ tugmasidan foydalaning.';
+            return;
+          }
+          if (liveSessionActive && uiState === 'listening') {
+            scheduleResumeListening(600);
+          }
+        };
+
+        rec.onend = () => {
+          if (recognition !== rec) return;
+          recognition = null;
+          const text = finalTranscript.trim();
+          if (text) {
+            askBunny({ message: text });
+          } else if (liveSessionActive && uiState === 'listening') {
+            scheduleResumeListening(450);
+          }
+        };
+
+        try {
+          rec.start();
+        } catch (e) {
+          scheduleResumeListening(600);
+        }
+        return;
+      }
+
+      // Fallback for WebViews without Web Speech API: MediaRecorder -> Gemini Audio if configured, else open quick-type
+      if (hasGeminiBackend && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
+        try {
+          await startMicVisualizer();
+          recordedChunks = [];
+          const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+          mediaRecorder = new MediaRecorder(micStream, { mimeType: mime });
+          isRecordingFallback = true;
+          setUIState('listening', 'Gapiring, keyin ⏹ bosing...');
+          userHeardLine.textContent = '🎙️ Ovoz yozilmoqda... tugagach ⏹ bosing';
+
+          mediaRecorder.ondataavailable = (ev) => {
+            if (ev.data && ev.data.size > 0) recordedChunks.push(ev.data);
+          };
+          mediaRecorder.onstop = async () => {
+            isRecordingFallback = false;
+            const blob = new Blob(recordedChunks, { type: mime });
+            if (blob.size < 1200) {
+              setUIState('idle');
+              return;
+            }
+            const b64 = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(String(reader.result || '').split(',')[1] || '');
+              reader.readAsDataURL(blob);
+            });
+            askBunny({ audioBase64: b64, audioMime: mime });
+          };
+          mediaRecorder.start();
+          return;
+        } catch (e) {}
+      }
+
+      liveSessionActive = false;
+      setUIState('idle');
+      quickTypeForm.classList.add('open');
+      quickTypeInput.focus();
+      bunnySubtitle.textContent = 'Bu brauzerda ovozli tanish qo‘llab-quvvatlanmadi — Chrome/Edge brauzerda oching yoki pastdan yozing!';
+    }
+
+    function endLiveSession() {
+      liveSessionActive = false;
+      stopListeningHardware();
+      stopSpeaking();
+      stopMicVisualizer();
+      setUIState('idle');
+      userHeardLine.textContent = '';
+    }
+
+    // ---- Main Hero Live Button (Gemini Live Behavior) ----
+    heroLiveBtn.addEventListener('click', async () => {
+      ensureAudioCtx();
+      if (isRecordingFallback && mediaRecorder) {
+        mediaRecorder.stop();
+        return;
+      }
+      if (uiState === 'speaking') {
+        // Barge-in! Interrupt bunny immediately and listen
+        liveSessionActive = true;
+        beginListeningTurn();
+        return;
+      }
+      if (uiState === 'listening') {
+        // Pause / stop listening
+        endLiveSession();
+        return;
+      }
+      if (uiState === 'thinking') return;
+
+      // Start continuous Gemini Live voice session!
+      liveSessionActive = true;
+      beginListeningTurn();
+    });
+
+    // Tapping the 3D Bunny directly
+    canvas.addEventListener('click', () => {
+      ensureAudioCtx();
+      if (uiState === 'speaking' && liveSessionActive) {
+        beginListeningTurn(); // Tap bunny to interrupt & ask next question
+      } else {
+        bunny.triggerHop();
+      }
+    });
+
+    endOrMuteBtn.addEventListener('click', () => {
+      if (liveSessionActive) {
+        endLiveSession();
+      } else {
+        voiceMuted = !voiceMuted;
+        if (voiceMuted) stopSpeaking();
+        setUIState(uiState);
+      }
+    });
+
+    toggleTypeBtn.addEventListener('click', () => {
+      quickTypeForm.classList.toggle('open');
+      toggleTypeBtn.classList.toggle('active', quickTypeForm.classList.contains('open'));
+      if (quickTypeForm.classList.contains('open')) quickTypeInput.focus();
+    });
+
+    quickTypeForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const t = chatInput.value.trim(); if(!t) return;
-      chatInput.value=''; sendToBunny(t);
-    });
-    const btn=(id,fn)=> document.getElementById(id).addEventListener('click', e=>{ e.stopPropagation(); fn(); });
-
-    btn('carrotBtn',  ()=>{ bunny.triggerCarrot(); sendToBunny('','carrot'); });
-    btn('petBtn',     ()=>{ bunny.triggerHop(2); bunny.burstHearts(); sendToBunny('','pet'); });
-    btn('danceBtn',   ()=>{ bunny.triggerDance(); sendToBunny('','dance'); });
-    btn('waveBtn',    ()=>{ bunny.triggerWave(); sendToBunny('','wave'); });
-    btn('sleepBtn',   ()=>{ bunny.triggerSleep(); sendToBunny('','sleep'); });
-    btn('wakeBtn',    ()=>{ bunny.sleeping=false; bunny.triggerHop(1); sendToBunny('','wake'); });
-    btn('askMeBtn',   ()=> sendToBunny('','curious_question'));
-    btn('jokeBtn',    ()=> sendToBunny('','joke'));
-    btn('factBtn',    ()=> sendToBunny('','fun_fact'));
-    btn('confessBtn', ()=>{ bunny.setMood('shy'); sendToBunny('','confess'); });
-
-    canvas.addEventListener('click', ()=>{ bunny.triggerHop(1); bunny.burstHearts(); sendToBunny('','pet'); });
-
-    voiceBtn.addEventListener('click', e=>{
-      e.stopPropagation();
-      voiceOn=!voiceOn;
-      voiceBtn.textContent = voiceOn ? '🔊 Ovoz' : '🔇 Ovoz o'ch';
-      if (!voiceOn && speechSynthesis) speechSynthesis.cancel();
+      const t = quickTypeInput.value.trim();
+      if (!t) return;
+      quickTypeInput.value = '';
+      quickTypeForm.classList.remove('open');
+      toggleTypeBtn.classList.remove('active');
+      askBunny({ message: t });
     });
 
-    // ---- Mic ----
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SR){
-      const rec = new SR(); rec.lang='uz-UZ'; rec.interimResults=false;
-      micBtn.addEventListener('click', ()=>{ try{ micBtn.classList.add('listening'); rec.start(); } catch(e){ micBtn.classList.remove('listening'); } });
-      rec.onresult = ev=>{ micBtn.classList.remove('listening'); const s=ev.results[0]?.[0]?.transcript; if(s) sendToBunny(s); };
-      rec.onerror=rec.onend=()=> micBtn.classList.remove('listening');
-    } else { micBtn.style.display='none'; }
+    // ---- Knowledge Vault & Settings ----
+    function updateKnowledgeCounter(count) {
+      kbCountBadge.textContent = String(count);
+      iqCountText.textContent = `${count} ta ma’lumot`;
+      const pct = Math.min(100, Math.max(8, Math.round((count / 40) * 100)));
+      iqFill.style.width = pct + '%';
+      let lvl = 'Boshlang‘ich';
+      if (count >= 40) lvl = 'Daho AI Quyon 🏆';
+      else if (count >= 20) lvl = 'Professor Quyon 🎓';
+      else if (count >= 10) lvl = 'Bilimdon Quyon 🧠';
+      else if (count >= 3)  lvl = 'O‘rganuvchi Quyon ✨';
+      iqLevelText.textContent = `Bilim darajasi: ${lvl}`;
+    }
 
-    // ---- Initial greeting ----
-    const hello = userName
-      ? `Salom, ${userName}! 🐰 Mening ismim Quvonch — sening bilan xuddi yoningda o'tirgandek jonli suhbatlashaman! Quloqlarim ham dikkayib senga qarab turibdi. Bugun kayfiyating qanday, do'stim?`
-      : `Salom! 🐰 Mening ismim Quvonch! Men oddiy bot emas — sening bilan qiziqib, kulib, hayajonlanib gaplashadigan jonli quyonchanman. Isming nima, va bugun kuning qanday o'tyapti?`;
-    addMsg('bunny', hello);
-    history.push({role:'bunny',text:hello});
-    speakText(hello);
+    function renderKnowledgeList(items) {
+      kbList.innerHTML = '';
+      if (!items || items.length === 0) {
+        kbList.innerHTML = '<div class="tiny-note" style="text-align:center;padding:14px 0">Hali maxsus ma’lumot qo‘shilmagan. Yuqoridan yozing yoki ovozli suhbatda “eslab qol” deb o‘rgating!</div>';
+        return;
+      }
+      for (const item of items) {
+        const el = document.createElement('div');
+        el.className = 'kb-item';
+        const srcBadge = item.source === 'learned'
+          ? '<span class="kb-badge">Suhbatdan o‘rgangan</span>'
+          : (item.source === 'file' ? '<span class="kb-badge">Fayldan</span>' : '');
+        const safeTitle = (item.title || 'Bilim').replace(/</g, '&lt;');
+        const safeText  = (item.content || '').replace(/</g, '&lt;');
+        el.innerHTML = `
+          <div class="kb-item-main">
+            <div class="kb-item-title">${safeTitle} ${srcBadge}</div>
+            <div class="kb-item-text">${safeText}</div>
+          </div>
+          <button class="kb-del" type="button" data-id="${item.id}">🗑</button>
+        `;
+        el.querySelector('.kb-del').addEventListener('click', async () => {
+          await fetch('/api/bunny-knowledge/' + encodeURIComponent(item.id), { method: 'DELETE' });
+          loadKnowledgeAndConfig();
+        });
+        kbList.appendChild(el);
+      }
+    }
+
+    async function loadKnowledgeAndConfig() {
+      try {
+        const r = await fetch('/api/bunny-knowledge');
+        const data = await r.json();
+        if (!data.ok) return;
+        updateKnowledgeCounter(data.total || 0);
+        renderKnowledgeList(data.items || []);
+
+        const cfg = data.config || {};
+        bunnyName = cfg.bunnyName || 'Quvonch';
+        bunnyNameLabel.textContent = `${bunnyName} AI`;
+        bunnyNameInput.value = bunnyName;
+        customPersonaInput.value = cfg.customPersona || '';
+        selectedPreset = localStorage.getItem('bunny_voice_preset') || cfg.voicePreset || 'cartoon';
+        syncPresetUI();
+
+        hasGeminiBackend = Boolean(cfg.hasGemini);
+        if (cfg.hasGemini) {
+          aiStatusNote.textContent = '🟢 Google Gemini AI ulangan (eng yuqori sifat + ovozli tahlil faol)!';
+        } else if (cfg.hasGroq) {
+          aiStatusNote.textContent = '🟢 Groq Llama 3.3 70B ulangan!';
+        } else if (cfg.hasOpenai) {
+          aiStatusNote.textContent = '🟢 OpenAI GPT-4o-mini ulangan!';
+        } else {
+          aiStatusNote.textContent = '🟢 Ichki sun’iy intellekt faol (bepul). Istasangiz Gemini API kalitini ham ulashingiz mumkin.';
+        }
+      } catch (e) {}
+    }
+
+    function syncPresetUI() {
+      voicePresetGrid.querySelectorAll('.preset-card').forEach((card) => {
+        card.classList.toggle('active', card.dataset.preset === selectedPreset);
+      });
+    }
+
+    voicePresetGrid.addEventListener('click', (e) => {
+      const card = e.target.closest('.preset-card');
+      if (!card) return;
+      selectedPreset = card.dataset.preset;
+      localStorage.setItem('bunny_voice_preset', selectedPreset);
+      syncPresetUI();
+    });
+
+    testVoiceBtn.addEventListener('click', () => {
+      ensureAudioCtx();
+      speakCartoonVoice(`Salom! Mening ismim ${bunnyName}! Ovozim sizga yoqdimi?`, selectedPreset);
+    });
+
+    saveKbBtn.addEventListener('click', async () => {
+      const content = kbContentInput.value.trim();
+      if (!content) return;
+      saveKbBtn.disabled = true;
+      saveKbBtn.textContent = 'Saqlanmoqda...';
+      try {
+        const r = await fetch('/api/bunny-knowledge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: kbTitleInput.value.trim(),
+            content,
+            source: 'manual',
+            userId,
+          }),
+        });
+        const data = await r.json();
+        if (data.ok) {
+          kbTitleInput.value = '';
+          kbContentInput.value = '';
+          await loadKnowledgeAndConfig();
+          showLearnToast([`${data.addedCount} ta yangi bilim bazaga qo‘shildi!`]);
+        }
+      } finally {
+        saveKbBtn.disabled = false;
+        saveKbBtn.textContent = '✨ Bilimni saqlash';
+      }
+    });
+
+    uploadKbFileBtn.addEventListener('click', () => kbFileInput.click());
+    kbFileInput.addEventListener('change', async () => {
+      const file = kbFileInput.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      if (!text.trim()) return;
+      const r = await fetch('/api/bunny-knowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: file.name,
+          content: text.slice(0, 40000),
+          source: 'file',
+          userId,
+        }),
+      });
+      const data = await r.json();
+      kbFileInput.value = '';
+      if (data.ok) {
+        await loadKnowledgeAndConfig();
+        showLearnToast([`${file.name} (${data.addedCount} qism) o‘rganildi!`]);
+      }
+    });
+
+    saveSettingsBtn.addEventListener('click', async () => {
+      saveSettingsBtn.disabled = true;
+      saveSettingsBtn.textContent = 'Saqlanmoqda...';
+      try {
+        const payload = {
+          voicePreset: selectedPreset,
+          bunnyName: bunnyNameInput.value.trim() || 'Quvonch',
+          customPersona: customPersonaInput.value.trim(),
+        };
+        if (geminiKeyInput.value.trim()) {
+          payload.geminiKey = geminiKeyInput.value.trim();
+        }
+        await fetch('/api/bunny-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        geminiKeyInput.value = '';
+        await loadKnowledgeAndConfig();
+        settingsModal.classList.remove('open');
+        bunny.triggerHop();
+      } finally {
+        saveSettingsBtn.disabled = false;
+        saveSettingsBtn.textContent = '💾 Sozlamalarni saqlash';
+      }
+    });
+
+    openKnowledgeBtn.addEventListener('click', () => {
+      loadKnowledgeAndConfig();
+      knowledgeModal.classList.add('open');
+    });
+    openSettingsBtn.addEventListener('click', () => {
+      loadKnowledgeAndConfig();
+      settingsModal.classList.add('open');
+    });
+    document.querySelectorAll('[data-close]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.getElementById(btn.dataset.close)?.classList.remove('open');
+      });
+    });
+    [knowledgeModal, settingsModal].forEach((m) => {
+      m.addEventListener('click', (e) => {
+        if (e.target === m) m.classList.remove('open');
+      });
+    });
+
+    // ---- Init ----
+    loadKnowledgeAndConfig();
+    bunnySubtitle.textContent = userName
+      ? `Salom, ${userName}! Men Quvonchman — pastdagi mikrofonni bosing va xuddi Gemini Live kabi jonli gaplashamiz!`
+      : 'Salom! Men Quvonchman — pastdagi mikrofonni bosing, menga istalgan savol bering va yangi bilimlar o‘rgating!';
   </script>
 </body>
 </html>

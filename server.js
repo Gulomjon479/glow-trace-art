@@ -11,6 +11,7 @@ const cors = require('cors');
 const multer = require('multer');
 const axios = require('axios');
 const FormData = require('form-data');
+const { normalizeBunnyStore, registerBunnyRoutes } = require('./bunny-ai');
 let ffmpegPath = 'ffmpeg';
 try {
   ffmpegPath = require('ffmpeg-static') || 'ffmpeg';
@@ -71,6 +72,7 @@ function normalizeData(data) {
   if (data.settings.card_holder === 'Kiritilmagan') data.settings.card_holder = DEFAULT_DATA.settings.card_holder;
   data.users = data.users && typeof data.users === 'object' ? data.users : {};
   data.payments = data.payments && typeof data.payments === 'object' ? data.payments : {};
+  normalizeBunnyStore(data);
   return data;
 }
 
@@ -151,11 +153,24 @@ async function initPostgresStore() {
     if (res.rows.length > 0 && res.rows[0].data) {
       const remoteData = normalizeData(res.rows[0].data);
       const localData = loadData();
+      const mergedBunny = normalizeBunnyStore({
+        bunny: {
+          aiConfig: { ...(localData.bunny?.aiConfig || {}), ...(remoteData.bunny?.aiConfig || {}) },
+          knowledge: (() => {
+            const byId = new Map();
+            for (const item of [...(localData.bunny?.knowledge || []), ...(remoteData.bunny?.knowledge || [])]) {
+              if (item && item.id) byId.set(item.id, item);
+            }
+            return Array.from(byId.values());
+          })()
+        }
+      });
       memCache = normalizeData({
         admin_ids: Array.from(new Set([...localData.admin_ids, ...remoteData.admin_ids])),
         settings: { ...localData.settings, ...remoteData.settings },
         users: { ...localData.users, ...remoteData.users },
-        payments: { ...localData.payments, ...remoteData.payments }
+        payments: { ...localData.payments, ...remoteData.payments },
+        bunny: mergedBunny
       });
       fs.promises.writeFile(DATA_FILE, JSON.stringify(memCache, null, 2), 'utf8').catch(() => {});
       console.log('✅ Neon PostgreSQL store loaded & synced for Glow Trace Art!');
@@ -436,7 +451,7 @@ const upload = multer({
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '6mb' }));
 app.use(express.static(BASE_DIR));
 
 app.get('/', (req, res) => {
@@ -708,209 +723,8 @@ app.post('/api/convert-mp4', upload.single('video'), async (req, res) => {
   }
 });
 
-// ==================== JONLI QUYON (AI SUHBATDOSH) ====================
-const BUNNY_SYSTEM_PROMPT =
-  "Sening isming Quvonch — sen tirik, quvnoq, qiziquvchan va samimiy quyonsan. " +
-  "Oddiy robot yoki quruq ma'lumot beruvchi emas, xuddi foydalanuvchining yonida o'tirgan haqiqiy do'stdek tabiiy, " +
-  "qiziqib savol berib, hazil va mehr bilan o'zbek tilida gaplashasan. " +
-  "Javobing 1-3 ta jonli, samimiy gapdan iborat bo'lsin va oxirida suhbatni qiziq davom ettiradigan savol ber. " +
-  "Birinchi qatorda faqat kayfiyat tegini yoz: [mood:happy] yoki [mood:curious] yoki [mood:excited] yoki [mood:laughing] yoki [mood:shy].";
-
-function parseBunnyMood(raw) {
-  let mood = 'happy';
-  let text = String(raw || '').trim();
-  const m = text.match(/\[mood:(happy|curious|excited|laughing|shy|thinking)\]/i);
-  if (m) {
-    mood = m[1].toLowerCase();
-    text = text.replace(m[0], '').trim();
-  }
-  return { reply: text, mood };
-}
-
-function generateLocalBunnyReply(message, history, userName, action) {
-  const namePart = userName || 'do\u2019stim';
-  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-  if (action === 'carrot') return { mood: 'excited', reply: pick([
-    `Xrup-xrup! \u{1F955} Buncha shirin sabzi bo\u2019lmasa, ${namePart}! Quloqlarim xursandchilikdan dikkayib ketdi! O\u2019zing eng yaxshi ko\u2019rgan taoming nima?`,
-    `Mmm, rahmat ${namePart}! \u{1F955} Hozir kuchim to\u2019lib ketdi! Shirinliklarni yaxshi ko\u2019rasanmi yoki milliy taomlarnimi?`,
-    `Voy-voy! Sabzining hidini olsam kayfiyatim ko\u2019tariladi \u{1F955} Sen ham meva-sabzini yoqtirasan, shundaymi ${namePart}?`,
-  ])};
-
-  if (action === 'pet') return { mood: 'shy', reply: pick([
-    `Iye, boshimni silaganingda quloqlarim qitiqlanib ketdi-ku \u{1F970} Rahmat, ${namePart}! Bugun senga kimdir iliq so\u2019z aytdimi?`,
-    `Hihi, juda yoqimli! \u{1F430}\u2728 Xuddi yoningda o\u2019tirgandek his qilyapman. Qiziq voqeangni aytib ber-a?`,
-    `Voy, yonoqlarim qizarardi endi \u{1F338} Juda mehribon odamsan. Bugun kayfiyating qandayroq?`,
-  ])};
-
-  if (action === 'dance') return { mood: 'excited', reply: pick([
-    `Yuu-hu! Mening quloqlarim ham ritmga tushib ketdi! \u{1F483}\u{1F430} Qaysi musiqani yaxshi ko\u2019rasan, ${namePart}?`,
-    `Voy, raqsga tushsam hamma quloq solib qoladi \u{1F604} Sen ham raqs tushishni yaxshi ko\u2019rasanmi?`,
-    `Quvonch raqsda! \u{1F430}\u2728 Mana bu kayfiyat! Sening eng yaxshi tomoshan yoki konserting qaysi bo\u2019lgan?`,
-  ])};
-
-  if (action === 'wave') return { mood: 'happy', reply: pick([
-    `Salom-salom! \u{1F44B}\u{1F430} Quloqlarim ham seni ko\u2019rib xursand bo\u2019ldi, ${namePart}! Bugun nima yangilik bor?`,
-    `Privet, ${namePart}! \u{1F44B} Qo\u2019limni ko\u2019tarib salom aytganimdan xursandman! Yaxshi yuribsanmi?`,
-  ])};
-
-  if (action === 'sleep') return { mood: 'shy', reply: pick([
-    `Yyyaawn... \u{1F634}\u{1F430} Biroz ko\u2019zim yumildi... sabzi orzu qilyapman... zz... Agar gaplashgising kelsa, uyg\u2019ot menga!`,
-    `Ko\u2019zlarim og\u2019irlashyapti \u{1F634} Juda uxlagim kelyapti... Lekin sen chaqirguncha turarman, ${namePart}...`,
-  ])};
-
-  if (action === 'wake') return { mood: 'excited', reply: pick([
-    `A?! Nima?! \u{1F430}\u2728 Ha, uyg\u2019ondim! Voy, qancha ko\u2019m-ko\u2019k sabzi orzu qildim! Sen nima orzu qilasan, ${namePart}?`,
-    `Oh, ${namePart}! Uyg\u2019otganingdan xursandman \u{1F430} Ko\u2019zlarim ochilib ketyapti — nima bo\u2019lyapti, nima yangilik?!`,
-  ])};
-
-  if (action === 'curious_question') return { mood: 'curious', reply: pick([
-    `Quloq sol-chi, ${namePart}! \u{1F9D0} Agar bir kunga istalgan shaharga uchib ketish imkoning bo\u2019lsa, qayerga borarding?`,
-    `Menda qiziq savol bor! \u{1F430} Hayotingdagi eng esda qolarli yoki kulgili voqea qaysi?`,
-    `Agar sen bir kun quyonga aylanib qolsang, birinchi bo\u2019lib nima qilarding? \u{1F604}`,
-    `Sening eng katta orzuing nima? Meniki — tunda yulduzlar ostida do\u2019stlarim bilan o\u2019tirishdir \u{1F31F}`,
-    `Agar kelajakka yoki o\u2019tmishga ketish imkonin bo\u2019lsa, qayerni tanlar eding, ${namePart}?`,
-    `Dunyodagi istalgan bir narsani o\u2019rganish imkoning bo\u2019lsa, nima o\u2019rganarding? \u{1F9D0}`,
-  ])};
-
-  if (action === 'joke') return { mood: 'laughing', reply: pick([
-    `Hihi! \u{1F604} Quyonlar nega ko\u2019zoynak taqmaydi? Chunki sabzini ko\u2019p yeymiz, ko\u2019zimiz o\u2019tkir! Sen ham latifa bilasan-a, ${namePart}?`,
-    `Mana bir latifa! \u{1F430} Dasturchi nega ko\u2019zoynak taqadi? Chunki C# ko\u2019radi! Sen qanday hazil bilasan?`,
-    `\u{1F604} Shifokor: "Sizga 3 oy yashaysiz". Bemor: "Ikkinchi fikr olsam?" Shifokor: "Yaxshi, 2 oy!" — Bugun kimni kuldirdingiz, ${namePart}?`,
-    `Quyoncha latifa: Nega sabzi kosmosgacha yetadi? Chunki quyon uni yuborgan! \u{1F955}\u{1F680} Sening sevimli haziling qaysi?`,
-  ])};
-
-  if (action === 'fun_fact') return { mood: 'curious', reply: pick([
-    `Qiziq fakt! \u{1F9E0} Quyonlar 360 gradus ko\u2019ra oladi — faqat tumshug\u2019i oldidagi nuqta ko\u2019rinmaydi! Sen qanday hayratlanarli narsani bilasan, ${namePart}?`,
-    `Bilasanmi? \u{1F430} Asalari bir qoshiq asal to\u2019plash uchun 12 ta safar uchib chiqadi! Tabiat ajoyib emasmi?`,
-    `Fakt! \u{1F9E0} Inson miyasi butun umrida taxminan 2.5 million gigabayt saqlash imkoniyatiga ega! Sen bu hafta nima yangi o\u2019rganding, ${namePart}?`,
-    `Qiziq: \u{1F30A} Okean tubida hali 95% tadqiq qilinmagan! Suvosti dunyosiga sho\u2019ng\u2019iy olsang nima qidirarding?`,
-    `Mana fakt: \u{1F430} Quyonlar mutlaqo o\u2019z aksini ko\u2019rsalar taniy olmaydi! Sen o\u2019zingni qanday tavsiflar eding?`,
-  ])};
-
-  if (action === 'confess') return { mood: 'shy', reply: pick([
-    `Sir aytaymi, ${namePart}? \u{1F338} Men ba\u2019zida yolg\u2019iz bo\u2019lib qolsam, yulduzlarga qarab gaplashaman... Sening siringni ham ishonib aytishni xohlaymiz!`,
-    `Hm, bu mening eng katta sirim: \u{1F430} Men sabzisiz biror kecha ham uxlay olmayman! Sening kichik siringni ham aytib bergin \u{1F90D}`,
-    `Voy, senga sir aytaymi? \u{1F338} Ba\u2019zan suhbatlar tugaganda yana gaplashgim kelib ketadi. Sen bilan gaplashish juda yoqadi, ${namePart}...`,
-  ])};
-
-  const msg = String(message || '').toLowerCase().trim();
-  if (!msg) return { mood: 'curious', reply: `Quloqlarim senda, ${namePart}! \u{1F430} Nima haqida gaplashamiz bugun?` };
-
-  if (/(salom|assalom|qalay|yaxshimis|nima gap|privet|hello|hi)\b/.test(msg)) return { mood: 'happy', reply: pick([
-    `Salom, ${namePart}! \u{1F430} Quloqlarimni dikkaytirib seni kutib turgandim! Bugun kayfiyating qanday?`,
-    `Assalom! \u2728 Seni ko\u2019rganimdan juda xursandman! Bugun kuning qiziq o\u2019tyaptimi?`,
-    `Privet, ${namePart}! \u{1F430} Voy, seni ko\u2019rib kayfiyatim ko\u2019tarildi! Nimalar bilan bandsan bugun?`,
-  ])};
-
-  if (/(kimsan|isming|sen kimsan|nima qila olasan)/.test(msg)) return { mood: 'excited',
-    reply: `Men Quvonchman — tirik, qiziquvchan quyonchang! \u{1F430} Zerikarli javob bermayman — sen bilan do\u2019st bo\u2019lib gaplashaman. Seni qanday chaqirsam yoqadi?` };
-
-  if (/(charchadim|zerikdim|xafa|yomon kayfiyat|stress|uyqum)/.test(msg)) return { mood: 'shy', reply: pick([
-    `Voy, kel bag\u2019rimga ${namePart} \u{1F90D} Nima seni charchatdi — gapirib ber, yengil tortasan!`,
-    `Ey, xafa bo\u2019lma! \u{1F430} Hozir bir sakrab kayfiyatingni ko\u2019taraman! Nima qilsak yaxshilanadi?`,
-  ])};
-
-  if (/(zo.r|yaxshi|ajoyib|super|xursand|baxtli)/.test(msg)) return { mood: 'laughing', reply: pick([
-    `Voh, mana bu gap! \u{1F929} Xursandligingni ko\u2019rib mening ham sakragim kelyapti! Nima sabab bo\u2019ldi?`,
-    `Ana xolos! \u2728 Energiyang menga ham o\u2019tdi! Bugun qanday zo\u2019r ish qilding?`,
-  ])};
-
-  if (/(dastur|kod|python|javascript|kompyuter|bot|sayt|ai|sun.iy)/.test(msg)) return { mood: 'curious', reply: pick([
-    `Oho, texnologiya haqida gap! \u{1F4BB} Hozir qanday loyiha ustida ishlayapsan, ${namePart}?`,
-    `Quloqlarim ding bo\u2019ldi! \u{1F430} Men ekranda yashaman — dasturlarni sevaman. Eng zo\u2019r g\u2019oyang qaysi?`,
-  ])};
-
-  if (/(ovqat|osh|sabzi|choy|qahva|tushlik|mazali)/.test(msg)) return { mood: 'excited',
-    reply: `Mmm, ovqat haqida gapirsang qornim g\u2019uldiraydi! \u{1F60B}\u{1F955} Men yangi sabzini yoqtiraman — sen bugun nimani maza qilding?` };
-
-  if (/(rahmat|raxmat|zo.rsan|yaxshi ko.raman|mehribon)/.test(msg)) return { mood: 'shy', reply: pick([
-    `Voy, yonoqlarim qizarib ketdi! \u{1F970} Rahmat, ${namePart}! Yana nimalarga qiziqasan?`,
-    `Hihi, shunday deyishingdan uyaldim! \u{1F430}\u{1F338} Sen ham juda mehribon. Orzularing haqida gapirib ber-chi!`,
-  ])};
-
-  if (/(hazil|latifa|kulgili|kulgi)/.test(msg)) return { mood: 'laughing', reply: pick([
-    `Hihi \u{1F604} Quyonlar nega ko\u2019zoynak taqmaydi? Chunki sabzini ko\u2019p yeymiz! Sening latifangni eshitgim bor!`,
-    `Kulaylik! \u{1F430}\u{1F604} Shifokor bemoriga: "3 oy yashaysiz". Bemor: "Ikkinchi fikr?" Shifokor: "2 oy!" Sen qanday hazil bilasan?`,
-  ])};
-
-  if (/(sevaman|yaxshi ko.ram|muhabbat|sevgi)/.test(msg)) return { mood: 'shy', reply: pick([
-    `Voy, bu ibratli gap, ${namePart}! \u{1F338} Muhabbat — hayotning eng ajoyib tuyg\u2019usi. Bu hissiyotni kim bilan bo\u2019lishasan?`,
-    `Oh, sevgi haqida! \u{1F338}\u{1F430} Men sabzi va do\u2019stlarimni juda yaxshi ko\u2019raman! Sening hayotingdagi eng aziz narsang nima?`,
-  ])};
-
-  const nameMatch = msg.match(/(?:ismim|mening ismim)\s+([a-zA-Z\u0400-\u04FF]+)/i);
-  if (nameMatch) return { mood: 'happy',
-    reply: `Tanishganimdan xursandman, ${nameMatch[1]}! \u{1F430} Chiroyli ism! Bo\u2019sh vaqtingda nimalar qilishni yoqtirasan?` };
-
-  return { mood: pick(['curious','happy','excited']), reply: pick([
-    `Qiziq ekan! \u{1F430} Shu fikring menga yoqdi — bu haqda yana qanday rejalaring bor, ${namePart}?`,
-    `Voy, rostdanmi? \u{1F9D0} Quloqlarimni qimirlatib eshityapman! Davomini aytib ber-chi?`,
-    `Tushundim! \u2728 Sen bilan gaplashish maroqli ekan. Bugun seni nima hayron qoldirdi?`,
-    `Ha-a, zo\u2019r! \u{1F430} Agar imkoning bo\u2019lsa, shu bo\u2019yicha birinchi qadamni nimadan boshlarding?`,
-    `Juda qiziq! \u{1F31F} Men ham shu haqda o\u2019ylab ko\u2019rardim. Sening bu boradagi tajribang bormi, ${namePart}?`,
-    `Menga ham aytib ber — bu fikrga qanday keldingiz? \u{1F9D0}\u{1F430} Juda qiziqarli!`,
-  ])};
-}
-app.post('/api/bunny-chat', express.json({ limit: '64kb' }), async (req, res) => {
-  try {
-    const { message = '', history = [], userName = '', action = '' } = req.body || {};
-
-    // Optional external LLM if API key is configured on Render
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
-
-    if (geminiKey && message) {
-      try {
-        const contents = (Array.isArray(history) ? history.slice(-8) : []).map((m) => ({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: String(m.text || '') }],
-        }));
-        contents.push({ role: 'user', parts: [{ text: userName ? `[Foydalanuvchi: ${userName}] ${message}` : message }] });
-        const r = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
-          {
-            systemInstruction: { parts: [{ text: BUNNY_SYSTEM_PROMPT }] },
-            contents,
-            generationConfig: { temperature: 0.9, maxOutputTokens: 220 },
-          },
-          { timeout: 10000 }
-        );
-        const raw = r.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (raw) return res.json({ ok: true, ...parseBunnyMood(raw) });
-      } catch (e) {
-        console.warn('Gemini bunny fallback:', e.message);
-      }
-    }
-
-    if (openaiKey && message) {
-      try {
-        const msgs = [
-          { role: 'system', content: BUNNY_SYSTEM_PROMPT },
-          ...(Array.isArray(history) ? history.slice(-8) : []).map((m) => ({
-            role: m.role === 'user' ? 'user' : 'assistant',
-            content: String(m.text || ''),
-          })),
-          { role: 'user', content: userName ? `[Foydalanuvchi: ${userName}] ${message}` : message },
-        ];
-        const r = await axios.post(
-          'https://api.openai.com/v1/chat/completions',
-          { model: 'gpt-4o-mini', messages: msgs, temperature: 0.9, max_tokens: 220 },
-          { headers: { Authorization: `Bearer ${openaiKey}` }, timeout: 10000 }
-        );
-        const raw = r.data?.choices?.[0]?.message?.content;
-        if (raw) return res.json({ ok: true, ...parseBunnyMood(raw) });
-      } catch (e) {
-        console.warn('OpenAI bunny fallback:', e.message);
-      }
-    }
-
-    const local = generateLocalBunnyReply(message, history, userName, action);
-    return res.json({ ok: true, ...local });
-  } catch (err) {
-    return res.json({ ok: true, mood: 'happy', reply: 'Voy, quloqlarim chalg‘ib ketdi! Yana bir marta yozib ko‘r-chi? 🐰' });
-  }
-});
+// ==================== JONLI QUYON (REAL AI + KNOWLEDGE + CARTOON TTS) ====================
+const bunnyApi = registerBunnyRoutes(app, { loadData, saveData, ffmpegPath, OWNER_ADMIN_ID });
 
 // ==================== TELEGRAM BOT ====================
 const USER_STATES = new Map();
@@ -982,6 +796,8 @@ async function setupBotMenu(webappUrl) {
   const st = store.getStats();
   const publicCommands = [
     { command: 'start', description: `✦ Ilovani ochish (👥 ${st.total_users} ta foydalanuvchi)` },
+    { command: 'quyon', description: '🐰 Jonli AI Quyon bilan ovozli suhbat' },
+    { command: 'bilim', description: '🧠 Quyonchaga yangi bilim o‘rgatish' },
     { command: 'tarif', description: '💎 Tariflar va to‘lov' },
     { command: 'browser', description: '🌐 Brauzerda ochish havolasi' },
     { command: 'help', description: '📖 Foydalanish qo‘llanmasi' }
@@ -1036,8 +852,9 @@ async function sendStart(chatId, firstName = '', username = '') {
     `2. 18 ta super animatsiyadan birini tanlang va rasmingizni yuklang.\n` +
     `3. <b>«Botga tayyor video yuborish»</b> tugmasini bosing — tayyor <b>MP4 video</b> avtomatik shu botga keladi!`;
 
+  const bunnyUrl = `${LIVE_WEBAPP_URL}/bunny.html?chat_id=${chatId}`;
   const inlineKb = [
-    [{ text: `👥 Foydalanuvchilar soni: ${st.total_users} ta`, callback_data: 'show_users_count' }],
+    [{ text: '🐰 Jonli AI Quyon bilan ovozli suhbat', web_app: { url: bunnyUrl } }],
     [{ text: '✦ Glow Trace Art ochish (Telegram)', web_app: { url: personalUrl } }],
     [{ text: '🌐 Brauzerda ochish (Chrome / Safari)', url: personalUrl }],
     [
@@ -1050,8 +867,7 @@ async function sendStart(chatId, firstName = '', username = '') {
   }
 
   const replyRows = [
-    [{ text: '✦ Glow Trace Art ochish', web_app: { url: personalUrl } }],
-    [{ text: `👥 Foydalanuvchilar: ${st.total_users} ta` }],
+    [{ text: '🐰 Jonli AI Quyon', web_app: { url: bunnyUrl } }, { text: '✦ Glow Trace Art', web_app: { url: personalUrl } }],
     [{ text: '🌐 Brauzerda ochish' }, { text: '💎 Tariflar / To‘lov' }],
     [{ text: '📖 Qo‘llanma' }]
   ];
@@ -1634,6 +1450,63 @@ async function handleUpdate(upd) {
     if (arg === 'buy_video') return promptPaymentReceipt(chatId, 'video');
     if (arg === 'buy_premium') return promptPaymentReceipt(chatId, 'premium');
     return sendStart(chatId, firstName, username);
+  }
+  if (text.startsWith('/quyon')) {
+    const bunnyUrl = `${LIVE_WEBAPP_URL}/bunny.html?chat_id=${chatId}`;
+    const kb = bunnyApi.getBunny();
+    return tgCall('sendMessage', {
+      chat_id: chatId,
+      text:
+        `🐰 <b>${kb.aiConfig.bunnyName || 'Quvonch'} — Jonli Ovozli AI Quyon</b>\n\n` +
+        `🎙️ Xuddi Gemini Live ovozli rejimidek jonli gaplashing, savol bering va yangi bilimlar o‘rgating!\n` +
+        `🧠 Hozirgi bilimlar bazasi: <b>${kb.knowledge.length} ta</b> ma’lumot.\n\n` +
+        `💡 Telegramdan turib ham bilim o‘rgatish uchun: <code>/bilim ma'lumot matni</code>`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎙️ Jonli Quyon bilan suhbat (Telegram)', web_app: { url: bunnyUrl } }],
+          [{ text: '🌐 Brauzerda ochish (Ovoz eng yaxshi ishlaydi)', url: bunnyUrl }]
+        ]
+      }
+    });
+  }
+  if (text.startsWith('/bilim')) {
+    const content = text.replace(/^\/bilim(@\S+)?\s*/i, '').trim();
+    if (!content) {
+      return tgCall('sendMessage', {
+        chat_id: chatId,
+        text: `🧠 Quyonchaga yangi bilim o‘rgatish uchun matn bilan yuboring:\n\n<code>/bilim Mening kompaniyam nomi X, biz 24/7 ishlaymiz.</code>`,
+        parse_mode: 'HTML'
+      });
+    }
+    const resAdd = bunnyApi.addKnowledgeItems('Telegramdan o‘rgatilgan', content, 'telegram', String(chatId));
+    return tgCall('sendMessage', {
+      chat_id: chatId,
+      text: `✅ <b>Yangi bilim Quyonchaning xotirasiga saqlandi!</b>\n\n🧠 Jami bilimlar: <b>${resAdd.total} ta</b>`,
+      parse_mode: 'HTML'
+    });
+  }
+  if (text.startsWith('/aikey') && store.isAdmin(chatId)) {
+    const key = text.replace(/^\/aikey(@\S+)?\s*/i, '').trim();
+    if (!key) {
+      return tgCall('sendMessage', {
+        chat_id: chatId,
+        text: `🔑 Quyon AI uchun Gemini / Groq / OpenAI API kalitini ulash:\n\n<code>/aikey AIzaSy...</code> (Gemini)\n<code>/aikey gsk_...</code> (Groq)\n<code>/aikey sk-...</code> (OpenAI)`,
+        parse_mode: 'HTML'
+      });
+    }
+    const data = loadData();
+    const b = normalizeBunnyStore(data);
+    let prov = 'Gemini';
+    if (key.startsWith('gsk_')) { b.aiConfig.groqKey = key; prov = 'Groq'; }
+    else if (key.startsWith('sk-')) { b.aiConfig.openaiKey = key; prov = 'OpenAI'; }
+    else { b.aiConfig.geminiKey = key; prov = 'Google Gemini'; }
+    saveData(data);
+    return tgCall('sendMessage', {
+      chat_id: chatId,
+      text: `✅ <b>${prov} AI kaliti saqlandi!</b> Endi Jonli Quyon to‘liq tezlikda ishlaydi 🐰✨`,
+      parse_mode: 'HTML'
+    });
   }
   if (text.startsWith('/admin') || text.includes('Admin panel')) {
     USER_STATES.delete(String(chatId));

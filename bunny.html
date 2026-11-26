@@ -3,42 +3,48 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Quvonch AI — Jonli Ovozli Quyon</title>
+  <title>Quyon Og‘a AI — Jonli Ko‘ruvchi va Suhbatdosh Quyon</title>
   <script src="https://telegram.org/js/telegram-web-app.js" async></script>
-  <link rel="stylesheet" href="fx/fx.css?v=3" />
-  <script src="fx/nav.js?v=3"></script>
+  <link rel="stylesheet" href="fx/fx.css?v=4" />
+  <script src="fx/nav.js?v=4"></script>
   <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js" } }</script>
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100%;
       overflow: hidden;
-      background: #060412;
+      background: #0d2a3d;
       color: #eef2ff;
       font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
     }
 
-    /* Fullscreen Gemini-Live Cosmic Stage */
+    /* Storybook Forest Sky Stage — shifts color with Bunny's mood & live state! */
     .live-stage {
       position: fixed;
       top: var(--nav-h, 50px);
       left: 0; right: 0; bottom: 0;
       overflow: hidden;
       background:
-        radial-gradient(circle at 50% 42%, rgba(139, 92, 246, 0.26) 0%, rgba(15, 10, 34, 0.92) 52%, #04030c 100%);
-      transition: background 0.6s ease;
+        radial-gradient(circle at 52% 24%, rgba(186, 230, 253, 0.45) 0%, rgba(56, 189, 248, 0.35) 28%, rgba(14, 116, 144, 0.6) 62%, #0b2b1e 100%);
+      transition: background 0.8s ease;
     }
     .live-stage[data-state="listening"] {
       background:
-        radial-gradient(circle at 50% 42%, rgba(56, 189, 248, 0.30) 0%, rgba(10, 18, 38, 0.92) 52%, #030612 100%);
+        radial-gradient(circle at 50% 28%, rgba(125, 211, 252, 0.55) 0%, rgba(14, 165, 233, 0.42) 34%, rgba(15, 76, 117, 0.72) 66%, #082328 100%);
     }
     .live-stage[data-state="thinking"] {
       background:
-        radial-gradient(circle at 50% 42%, rgba(245, 158, 11, 0.24) 0%, rgba(22, 13, 38, 0.92) 52%, #060410 100%);
+        radial-gradient(circle at 50% 26%, rgba(253, 224, 71, 0.38) 0%, rgba(245, 158, 11, 0.30) 32%, rgba(30, 58, 95, 0.78) 68%, #0f1d29 100%);
     }
     .live-stage[data-state="speaking"] {
       background:
-        radial-gradient(circle at 50% 42%, rgba(236, 72, 153, 0.28) 0%, rgba(24, 10, 38, 0.92) 52%, #070310 100%);
+        radial-gradient(circle at 50% 25%, rgba(254, 240, 138, 0.44) 0%, rgba(56, 189, 248, 0.38) 32%, rgba(16, 120, 110, 0.65) 66%, #0c2b1e 100%);
+    }
+    /* Moody rainy sky when bunny is sad or offended (Marusya-style!) */
+    .live-stage[data-mood="sad"],
+    .live-stage[data-mood="offended"] {
+      background:
+        radial-gradient(circle at 50% 28%, rgba(148, 163, 184, 0.32) 0%, rgba(51, 65, 85, 0.65) 38%, rgba(15, 23, 42, 0.88) 74%, #09131c 100%);
     }
 
     #bunnyCanvas {
@@ -53,7 +59,7 @@
     /* Minimal Top HUD */
     .top-hud {
       position: absolute;
-      top: 14px; left: 14px; right: 14px;
+      top: 12px; left: 12px; right: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -65,32 +71,35 @@
       pointer-events: auto;
       display: inline-flex;
       align-items: center;
-      gap: 9px;
-      padding: 8px 15px;
+      gap: 8px;
+      padding: 8px 14px;
       border-radius: 999px;
-      background: rgba(12, 10, 28, 0.66);
-      border: 1px solid rgba(196, 206, 255, 0.18);
+      background: rgba(10, 18, 30, 0.64);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       font-size: 13.5px;
       font-weight: 600;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     }
     .state-dot {
       width: 9px; height: 9px; border-radius: 50%;
-      background: #a78bfa;
-      box-shadow: 0 0 12px #a78bfa;
+      background: #4ade80;
+      box-shadow: 0 0 12px #4ade80;
       transition: all 0.3s ease;
     }
     .live-stage[data-state="listening"] .state-dot { background: #38bdf8; box-shadow: 0 0 14px #38bdf8; }
     .live-stage[data-state="thinking"]  .state-dot { background: #fbbf24; box-shadow: 0 0 14px #fbbf24; }
     .live-stage[data-state="speaking"]  .state-dot { background: #f472b6; box-shadow: 0 0 14px #f472b6; }
+    .live-stage[data-mood="offended"]   .state-dot,
+    .live-stage[data-mood="sad"]        .state-dot { background: #94a3b8; box-shadow: 0 0 10px #94a3b8; }
+
     .status-sub {
       font-size: 12px;
       font-weight: 500;
-      color: #a5b4fc;
+      color: #bae6fd;
       padding-left: 6px;
-      border-left: 1px solid rgba(255, 255, 255, 0.14);
+      border-left: 1px solid rgba(255, 255, 255, 0.16);
     }
 
     .hud-actions {
@@ -105,20 +114,20 @@
       gap: 6px;
       padding: 8px 13px;
       border-radius: 999px;
-      border: 1px solid rgba(196, 206, 255, 0.2);
-      background: rgba(12, 10, 28, 0.68);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(10, 18, 30, 0.66);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
-      color: #eef2ff;
+      color: #f8fafc;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
     }
-    .hud-btn:hover { border-color: rgba(216, 180, 254, 0.6); background: rgba(45, 26, 86, 0.65); }
+    .hud-btn:hover { border-color: rgba(253, 224, 71, 0.65); background: rgba(20, 34, 54, 0.78); }
     .hud-btn:active { transform: scale(0.95); }
     .kb-count {
-      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      background: linear-gradient(135deg, #f97316, #e11d48);
       color: #fff;
       font-size: 11px;
       font-weight: 700;
@@ -126,19 +135,53 @@
       border-radius: 999px;
     }
 
+    /* Floating Webcam PiP Preview (Bunny's Eyes!) */
+    .cam-pip {
+      position: absolute;
+      top: 62px;
+      left: 12px;
+      width: 148px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(8, 14, 24, 0.82);
+      border: 1.5px solid rgba(56, 189, 248, 0.55);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42);
+      z-index: 22;
+      display: none;
+    }
+    .cam-pip.active { display: block; }
+    .cam-pip video {
+      width: 100%;
+      height: 104px;
+      object-fit: cover;
+      transform: scaleX(-1);
+      display: block;
+    }
+    .cam-pip-tag {
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #bae6fd;
+      background: rgba(7, 13, 24, 0.9);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     /* Learned Memory Toast */
     .learn-toast {
       position: absolute;
-      top: 68px;
+      top: 64px;
       left: 50%;
       transform: translateX(-50%) translateY(-10px);
       z-index: 25;
       padding: 9px 16px;
       border-radius: 999px;
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(56, 189, 248, 0.28));
-      border: 1px solid rgba(52, 211, 153, 0.55);
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.34), rgba(56, 189, 248, 0.32));
+      border: 1px solid rgba(52, 211, 153, 0.65);
       backdrop-filter: blur(14px);
-      color: #d1fae5;
+      color: #ecfdf5;
       font-size: 13px;
       font-weight: 600;
       opacity: 0;
@@ -151,23 +194,23 @@
     }
     .learn-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    /* Bottom Gemini-Live Floating Caption + Controls */
+    /* Bottom Floating Caption + Voice/Camera Controls */
     .bottom-dock {
       position: absolute;
       left: 0; right: 0; bottom: 0;
-      padding: 12px 16px calc(22px + env(safe-area-inset-bottom));
+      padding: 12px 16px calc(20px + env(safe-area-inset-bottom));
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 13px;
+      gap: 12px;
       z-index: 20;
-      background: linear-gradient(0deg, rgba(5, 3, 14, 0.92) 0%, rgba(5, 3, 14, 0.52) 55%, transparent 100%);
+      background: linear-gradient(0deg, rgba(5, 14, 16, 0.88) 0%, rgba(5, 14, 16, 0.45) 55%, transparent 100%);
       pointer-events: none;
     }
 
     .live-caption-wrap {
-      width: min(640px, 94%);
-      min-height: 44px;
+      width: min(650px, 94%);
+      min-height: 40px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -178,7 +221,7 @@
     .user-heard-line {
       font-size: 13.5px;
       color: #7dd3fc;
-      opacity: 0.95;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.65);
       max-width: 100%;
       white-space: nowrap;
       overflow: hidden;
@@ -188,20 +231,19 @@
     .bunny-subtitle {
       padding: 10px 18px;
       border-radius: 18px;
-      background: rgba(14, 11, 30, 0.72);
-      border: 1px solid rgba(196, 181, 253, 0.22);
+      background: rgba(10, 18, 28, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       font-size: 15px;
       line-height: 1.48;
-      color: #f5f3ff;
-      max-height: 112px;
+      color: #f8fafc;
+      max-height: 108px;
       overflow-y: auto;
-      transition: opacity 0.3s ease;
     }
     .bunny-subtitle:empty { display: none; }
 
-    /* Optional discreet quick-type bar (hidden unless user taps keyboard icon) */
+    /* Optional discreet quick-type bar (hidden unless keyboard icon tapped) */
     .quick-type-bar {
       width: min(520px, 92%);
       display: none;
@@ -209,8 +251,8 @@
       gap: 8px;
       padding: 6px 8px;
       border-radius: 999px;
-      background: rgba(16, 13, 34, 0.92);
-      border: 1px solid rgba(196, 181, 253, 0.35);
+      background: rgba(10, 18, 30, 0.92);
+      border: 1px solid rgba(253, 224, 71, 0.4);
       backdrop-filter: blur(16px);
       pointer-events: auto;
     }
@@ -228,28 +270,28 @@
       border: none;
       width: 38px; height: 38px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #ec4899, #8b5cf6);
+      background: linear-gradient(135deg, #f97316, #e11d48);
       color: #fff;
       font-size: 16px;
       cursor: pointer;
     }
 
-    /* Gemini Live Control Orb Row */
+    /* Gemini-Live Clean Control Orbs */
     .live-controls {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 22px;
+      gap: 16px;
       pointer-events: auto;
     }
 
     .side-orb {
       width: 50px; height: 50px;
       border-radius: 50%;
-      border: 1px solid rgba(196, 206, 255, 0.22);
-      background: rgba(18, 15, 38, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(12, 22, 34, 0.78);
       backdrop-filter: blur(12px);
-      color: #e2e8f0;
+      color: #f1f5f9;
       font-size: 20px;
       display: inline-flex;
       align-items: center;
@@ -257,17 +299,18 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
-    .side-orb:hover { border-color: rgba(216, 180, 254, 0.6); transform: scale(1.06); }
+    .side-orb:hover { border-color: rgba(253, 224, 71, 0.7); transform: scale(1.06); }
     .side-orb:active { transform: scale(0.94); }
     .side-orb.danger {
-      background: rgba(239, 68, 68, 0.26);
-      border-color: rgba(248, 113, 113, 0.65);
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(248, 113, 113, 0.75);
       color: #fecaca;
     }
     .side-orb.active {
-      background: rgba(139, 92, 246, 0.35);
-      border-color: rgba(196, 181, 253, 0.7);
+      background: rgba(14, 165, 233, 0.36);
+      border-color: rgba(125, 211, 252, 0.85);
       color: #fff;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.4);
     }
 
     .hero-live-btn {
@@ -281,8 +324,8 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #6366f1 0%, #a855f7 52%, #ec4899 100%);
-      box-shadow: 0 0 34px rgba(168, 85, 247, 0.55), inset 0 0 18px rgba(255, 255, 255, 0.25);
+      background: linear-gradient(135deg, #f97316 0%, #e11d48 55%, #9333ea 100%);
+      box-shadow: 0 0 34px rgba(249, 115, 22, 0.55), inset 0 0 18px rgba(255, 255, 255, 0.25);
       transition: transform 0.2s ease, box-shadow 0.3s ease, background 0.3s ease;
     }
     .hero-live-btn::before {
@@ -290,7 +333,7 @@
       position: absolute;
       inset: -8px;
       border-radius: 50%;
-      border: 2px solid rgba(168, 85, 247, 0.45);
+      border: 2px solid rgba(251, 146, 60, 0.5);
       opacity: 0;
       transform: scale(0.9);
       transition: opacity 0.25s;
@@ -299,20 +342,20 @@
 
     .live-stage[data-state="listening"] .hero-live-btn {
       background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 55%, #6366f1 100%);
-      box-shadow: 0 0 42px rgba(56, 189, 248, 0.75), inset 0 0 18px rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 42px rgba(56, 189, 248, 0.75);
     }
     .live-stage[data-state="listening"] .hero-live-btn::before {
-      border-color: rgba(56, 189, 248, 0.75);
+      border-color: rgba(56, 189, 248, 0.8);
       opacity: 1;
-      animation: pulseRing 1.3s infinite ease-out;
+      animation: pulseRing 1.25s infinite ease-out;
     }
     .live-stage[data-state="thinking"] .hero-live-btn {
-      background: linear-gradient(135deg, #f59e0b 0%, #a855f7 100%);
-      box-shadow: 0 0 38px rgba(245, 158, 11, 0.6);
+      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      box-shadow: 0 0 38px rgba(245, 158, 11, 0.65);
     }
     .live-stage[data-state="speaking"] .hero-live-btn {
-      background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
-      box-shadow: 0 0 42px rgba(236, 72, 153, 0.75);
+      background: linear-gradient(135deg, #ec4899 0%, #f97316 100%);
+      box-shadow: 0 0 42px rgba(236, 72, 153, 0.72);
     }
     .live-stage[data-state="speaking"] .hero-live-btn::before {
       border-color: rgba(244, 114, 182, 0.75);
@@ -327,18 +370,18 @@
 
     .live-hint {
       font-size: 12px;
-      color: #a5b4fc;
-      opacity: 0.88;
-      letter-spacing: 0.2px;
+      color: #e0f2fe;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+      opacity: 0.9;
       text-align: center;
     }
 
-    /* Slide-Over Drawers (Knowledge Vault & Settings) */
+    /* Modals */
     .modal-backdrop {
       position: fixed;
       inset: 0;
       z-index: 80;
-      background: rgba(3, 2, 10, 0.74);
+      background: rgba(3, 8, 16, 0.74);
       backdrop-filter: blur(8px);
       display: none;
       align-items: center;
@@ -351,8 +394,8 @@
       width: min(560px, 100%);
       max-height: 88dvh;
       border-radius: 24px;
-      background: linear-gradient(180deg, rgba(20, 15, 42, 0.98), rgba(10, 8, 22, 0.98));
-      border: 1px solid rgba(196, 181, 253, 0.26);
+      background: linear-gradient(180deg, rgba(16, 24, 42, 0.98), rgba(9, 14, 26, 0.98));
+      border: 1px solid rgba(186, 230, 253, 0.24);
       box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65);
       display: flex;
       flex-direction: column;
@@ -360,7 +403,7 @@
     }
     .modal-head {
       padding: 16px 18px;
-      border-bottom: 1px solid rgba(196, 181, 253, 0.14);
+      border-bottom: 1px solid rgba(186, 230, 253, 0.14);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -386,20 +429,20 @@
     .iq-card {
       padding: 12px 14px;
       border-radius: 16px;
-      background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(56, 189, 248, 0.12));
-      border: 1px solid rgba(196, 181, 253, 0.24);
+      background: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(56, 189, 248, 0.14));
+      border: 1px solid rgba(253, 186, 116, 0.28);
     }
     .iq-top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
-    .iq-bar { height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
-    .iq-fill { height: 100%; width: 12%; border-radius: 999px; background: linear-gradient(90deg, #38bdf8, #a855f7, #ec4899); transition: width 0.4s ease; }
+    .iq-bar { height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+    .iq-fill { height: 100%; width: 12%; border-radius: 999px; background: linear-gradient(90deg, #38bdf8, #facc15, #f97316); transition: width 0.4s ease; }
 
     .field-group { display: flex; flex-direction: column; gap: 6px; }
-    .field-group label { font-size: 12.5px; font-weight: 600; color: #c4b5fd; }
+    .field-group label { font-size: 12.5px; font-weight: 600; color: #bae6fd; }
     .field-input, .field-textarea, .field-select {
       width: 100%;
       border-radius: 14px;
-      border: 1px solid rgba(196, 206, 255, 0.22);
-      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(196, 216, 255, 0.22);
+      background: rgba(255, 255, 255, 0.06);
       color: #fff;
       padding: 10px 13px;
       font-size: 14px;
@@ -407,8 +450,8 @@
       outline: none;
     }
     .field-textarea { min-height: 92px; resize: vertical; line-height: 1.45; }
-    .field-select option { background: #120d26; color: #fff; }
-    .field-input:focus, .field-textarea:focus, .field-select:focus { border-color: rgba(196, 181, 253, 0.65); }
+    .field-select option { background: #101829; color: #fff; }
+    .field-input:focus, .field-textarea:focus, .field-select:focus { border-color: rgba(125, 211, 252, 0.7); }
 
     .btn-row { display: flex; gap: 9px; flex-wrap: wrap; }
     .primary-btn {
@@ -420,10 +463,10 @@
       font-weight: 700;
       color: #fff;
       cursor: pointer;
-      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      background: linear-gradient(135deg, #f97316, #e11d48);
     }
     .secondary-btn {
-      border: 1px solid rgba(196, 206, 255, 0.26);
+      border: 1px solid rgba(196, 216, 255, 0.28);
       border-radius: 14px;
       padding: 11px 14px;
       font-size: 13.5px;
@@ -438,7 +481,7 @@
       padding: 11px 13px;
       border-radius: 14px;
       background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(196, 206, 255, 0.14);
+      border: 1px solid rgba(196, 216, 255, 0.14);
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
@@ -446,47 +489,30 @@
     }
     .kb-item-main { flex: 1; min-width: 0; }
     .kb-item-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: #a5b4fc;
-      margin-bottom: 3px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      font-size: 12px; font-weight: 700; color: #7dd3fc;
+      margin-bottom: 3px; display: flex; align-items: center; gap: 6px;
     }
     .kb-badge {
-      font-size: 10.5px;
-      padding: 1px 6px;
-      border-radius: 999px;
-      background: rgba(52, 211, 153, 0.2);
-      color: #6ee7b7;
+      font-size: 10.5px; padding: 1px 6px; border-radius: 999px;
+      background: rgba(52, 211, 153, 0.2); color: #6ee7b7;
     }
-    .kb-item-text { font-size: 13.5px; color: #eef2ff; line-height: 1.42; word-break: break-word; }
+    .kb-item-text { font-size: 13.5px; color: #f1f5f9; line-height: 1.42; word-break: break-word; }
     .kb-del {
-      border: none;
-      background: rgba(239, 68, 68, 0.16);
-      color: #fca5a5;
-      border-radius: 10px;
-      padding: 6px 9px;
-      font-size: 12px;
-      cursor: pointer;
+      border: none; background: rgba(239, 68, 68, 0.18); color: #fca5a5;
+      border-radius: 10px; padding: 6px 9px; font-size: 12px; cursor: pointer;
     }
 
     .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .preset-card {
-      padding: 11px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(196, 206, 255, 0.18);
+      padding: 11px 12px; border-radius: 14px;
+      border: 1px solid rgba(196, 216, 255, 0.2);
       background: rgba(255, 255, 255, 0.04);
-      color: #eef2ff;
-      text-align: left;
-      cursor: pointer;
-      transition: all 0.2s;
+      color: #eef2ff; text-align: left; cursor: pointer; transition: all 0.2s;
     }
     .preset-card.active {
-      border-color: #c084fc;
-      background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(236, 72, 153, 0.22));
-      box-shadow: 0 0 18px rgba(168, 85, 247, 0.25);
+      border-color: #fb923c;
+      background: linear-gradient(135deg, rgba(249, 115, 22, 0.3), rgba(225, 29, 72, 0.22));
+      box-shadow: 0 0 18px rgba(249, 115, 22, 0.25);
     }
     .preset-card strong { display: block; font-size: 13.5px; margin-bottom: 2px; }
     .preset-card span { font-size: 11.5px; color: #cbd5e1; }
@@ -495,22 +521,25 @@
     @media (max-width: 540px) {
       .status-pill { padding: 7px 11px; font-size: 12.5px; }
       .hud-btn { padding: 7px 10px; font-size: 12px; }
+      .cam-pip { width: 112px; }
+      .cam-pip video { height: 82px; }
       .bunny-subtitle { font-size: 14px; padding: 9px 14px; }
-      .hero-live-btn { width: 72px; height: 72px; font-size: 27px; }
+      .hero-live-btn { width: 70px; height: 70px; font-size: 26px; }
+      .side-orb { width: 46px; height: 46px; font-size: 18px; }
       .preset-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body data-section="bunny">
-  <div class="live-stage" id="liveStage" data-state="idle">
+  <div class="live-stage" id="liveStage" data-state="idle" data-mood="happy">
     <canvas id="bunnyCanvas"></canvas>
 
     <!-- Minimal Floating Top Bar -->
     <div class="top-hud">
       <div class="status-pill">
         <span class="state-dot"></span>
-        <span id="bunnyNameLabel">Quvonch AI</span>
-        <span class="status-sub" id="stateLabel">Jonli suhbatga tayyor</span>
+        <span id="bunnyNameLabel">Quyon Og‘a AI</span>
+        <span class="status-sub" id="stateLabel">O‘rmonda sizni kutyapti</span>
       </div>
       <div class="hud-actions">
         <button class="hud-btn" id="openKnowledgeBtn" type="button" title="Quyonchaga bilim o‘rgatish">
@@ -521,9 +550,15 @@
       </div>
     </div>
 
+    <!-- Floating Webcam Preview (Bunny sees you live!) -->
+    <div class="cam-pip" id="camPip">
+      <video id="camVideo" playsinline muted></video>
+      <div class="cam-pip-tag" id="camPipTag">👁️ Kamera yoqilmoqda...</div>
+    </div>
+
     <div class="learn-toast" id="learnToast">✨ Yangi bilim eslab qolindi!</div>
 
-    <!-- Gemini-Live Style Bottom Voice Controls -->
+    <!-- Bottom Floating Voice & Camera Controls -->
     <div class="bottom-dock">
       <div class="live-caption-wrap">
         <div class="user-heard-line" id="userHeardLine"></div>
@@ -531,17 +566,18 @@
       </div>
 
       <form class="quick-type-bar" id="quickTypeForm">
-        <input id="quickTypeInput" type="text" placeholder="Savol yoki yangi bilim yozing..." autocomplete="off" />
+        <input id="quickTypeInput" type="text" placeholder="Savol, gap yoki yangi bilim yozing..." autocomplete="off" />
         <button type="submit" aria-label="Yuborish">➤</button>
       </form>
 
       <div class="live-controls">
+        <button class="side-orb" id="camToggleBtn" type="button" title="Kamerani yoqish — quyon sizni ko‘ra oladi!">📷</button>
         <button class="side-orb" id="toggleTypeBtn" type="button" title="Yozib so‘rash">⌨️</button>
         <button class="hero-live-btn" id="heroLiveBtn" type="button" title="Jonli ovozli suhbatni boshlash">🎙️</button>
         <button class="side-orb" id="endOrMuteBtn" type="button" title="Ovozni o‘chirish / Suhbatni tugatish">🔊</button>
       </div>
 
-      <div class="live-hint" id="liveHint">Mikrofonni bosing — xuddi Gemini Live kabi jonli gaplashing</div>
+      <div class="live-hint" id="liveHint">🎙️ Mikrofonni bosing — 📷 Kamerani yoqsangiz quyon sizni ko‘rib gaplashadi!</div>
     </div>
   </div>
 
@@ -549,7 +585,7 @@
   <div class="modal-backdrop" id="knowledgeModal">
     <div class="modal-card">
       <div class="modal-head">
-        <h3>🧠 Quyoncha Bilim Bazasi</h3>
+        <h3>🧠 Bilimdon Quyon Xotirasi</h3>
         <button class="modal-close" data-close="knowledgeModal" type="button">✕</button>
       </div>
       <div class="modal-body">
@@ -567,7 +603,7 @@
         </div>
         <div class="field-group">
           <label for="kbContentInput">Quyonchaga yangi ma’lumot o‘rgating</label>
-          <textarea class="field-textarea" id="kbContentInput" placeholder="Istalgan ma’lumot, qoida, matn yoki bilimlarni shu yerga yozing — quyoncha hammasini eslab qoladi va ovozli suhbatda ishlatadi!"></textarea>
+          <textarea class="field-textarea" id="kbContentInput" placeholder="Istalgan ma’lumot, qoida, matn yoki bilimlarni yozing — quyon hammasini eslab qoladi va suhbatda ishlatadi!"></textarea>
         </div>
 
         <div class="btn-row">
@@ -577,7 +613,7 @@
         </div>
 
         <div class="tiny-note">
-          💡 Ovozli suhbat paytida ham <b>“eslab qol...”</b> yoki o‘zingiz haqingizda yangi ma’lumot aytsangiz, quyoncha uni avtomatik shu bazaga saqlab boradi!
+          💡 Ovozli suhbat paytida ham <b>“eslab qol...”</b> deb yangi ma’lumot aytsangiz, quyon uni avtomatik shu bazaga saqlab boradi!
         </div>
 
         <div class="kb-list" id="kbList"></div>
@@ -589,7 +625,7 @@
   <div class="modal-backdrop" id="settingsModal">
     <div class="modal-card">
       <div class="modal-head">
-        <h3>⚙️ Quyoncha Ovozi va Sun’iy Intellekt</h3>
+        <h3>⚙️ Multfilm Ovozi va Sun’iy Intellekt</h3>
         <button class="modal-close" data-close="settingsModal" type="button">✕</button>
       </div>
       <div class="modal-body">
@@ -597,16 +633,16 @@
           <label>Multfilm ovoz uslubini tanlang</label>
           <div class="preset-grid" id="voicePresetGrid">
             <button class="preset-card active" data-preset="cartoon" type="button">
-              <strong>🐰 Multfilm Quyoncha</strong>
-              <span>Quvnoq, chiroyli Pixar uslubi</span>
+              <strong>🐰 Quyon Og‘a (Multfilm)</strong>
+              <span>Sho‘x va quvnoq multfilm quyon ovozi</span>
             </button>
             <button class="preset-card" data-preset="pixar" type="button">
-              <strong>✨ Shirin Ertak</strong>
+              <strong>✨ Shirin Multfilm</strong>
               <span>Yumshoq va sehrli multfilm ovozi</span>
             </button>
             <button class="preset-card" data-preset="sardor" type="button">
-              <strong>⚡ Quvnoq Do‘st</strong>
-              <span>Energiyali yigit quyoncha ovozi</span>
+              <strong>🎓 Bilimdon Quyon</strong>
+              <span>Aqlli hikoyachi quyon ovozi</span>
             </button>
             <button class="preset-card" data-preset="natural" type="button">
               <strong>🎙️ Tabiiy O‘zbekcha</strong>
@@ -625,23 +661,23 @@
         </div>
 
         <div class="btn-row">
-          <button class="secondary-btn" id="testVoiceBtn" type="button" style="flex:1">🔊 Ovozni sinab ko‘rish</button>
+          <button class="secondary-btn" id="testVoiceBtn" type="button" style="flex:1">🔊 Multfilm ovozini sinash</button>
         </div>
 
         <div class="field-group">
-          <label for="bunnyNameInput">Quyoncha ismi</label>
-          <input class="field-input" id="bunnyNameInput" type="text" value="Quvonch" maxlength="32" />
+          <label for="bunnyNameInput">Quyon ismi</label>
+          <input class="field-input" id="bunnyNameInput" type="text" value="Quyon Og‘a" maxlength="32" />
         </div>
 
         <div class="field-group">
           <label for="customPersonaInput">Qo‘shimcha xarakter / rol (ixtiyoriy)</label>
-          <textarea class="field-textarea" id="customPersonaInput" style="min-height:66px" placeholder="Masalan: Menga ingliz tilini o‘rgatadigan do‘stona ustoz quyoncha bo‘l..."></textarea>
+          <textarea class="field-textarea" id="customPersonaInput" style="min-height:64px" placeholder="Masalan: Menga dasturlash va ingliz tilini o‘rgatadigan sho‘x quyon bo‘l..."></textarea>
         </div>
 
         <div class="field-group">
-          <label for="geminiKeyInput">Google Gemini API kaliti (ixtiyoriy — ichki AI tayyor!)</label>
-          <input class="field-input" id="geminiKeyInput" type="password" placeholder="AIza... (bo‘sh qoldirsangiz ichki bepul AI ishlaydi)" />
-          <div class="tiny-note" id="aiStatusNote">🟢 Ichki sun’iy intellekt avtomatik ulangan. Gemini kaliti qo‘shsangiz yanada tezroq ishlaydi.</div>
+          <label for="geminiKeyInput">Google Gemini API kaliti (ixtiyoriy — kamera ko‘rishi va ovoz uchun eng zo‘r!)</label>
+          <input class="field-input" id="geminiKeyInput" type="password" placeholder="AIza... (bo‘sh qoldirsangiz ham ichki bepul AI ishlaydi)" />
+          <div class="tiny-note" id="aiStatusNote">🟢 Ichki sun’iy intellekt + MediaPipe kamera ko‘rishi tayyor! Gemini kalitini qo‘shsangiz kamera orqali kiyim va buyumlarni ham ko‘radi hamda har qanday brauzerda ovozni 100% eshitadi.</div>
         </div>
 
         <button class="primary-btn" id="saveSettingsBtn" type="button">💾 Sozlamalarni saqlash</button>
@@ -655,150 +691,68 @@
       if (tg) { tg.ready(); tg.expand(); }
     } catch (e) {}
 
-    // ---- Built-in Zero-Dependency Pixar-Style 2D Cartoon Bunny Fallback ----
-    // Guarantees the bunny ALWAYS renders even if WebGL or Three.js CDN is unavailable!
-    class Bunny2D {
+    // ---- Zero-Dependency 2D Animated Hare Fallback (if WebGL fails) ----
+    class Hare2D {
       constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        this.lookX = 0; this.lookY = 0;
-        this.targetLookX = 0; this.targetLookY = 0;
-        this.aiState = 'idle';
-        this.mood = 'happy';
-        this.voiceLevel = 0; this.smoothVoice = 0;
-        this.micLevel = 0; this.smoothMic = 0;
-        this.blinkTimer = 2.5; this.blinking = 0;
-        this.hopTime = 0; this.learnBurst = 0;
+        this.aiState = 'idle'; this.mood = 'happy';
+        this.voiceLevel = 0; this.micLevel = 0;
+        this.posX = 0; this.targetX = 0; this.roamTimer = 2.5;
+        this.hopTime = 0;
       }
-      setLook(nx, ny) { this.targetLookX = Math.max(-1, Math.min(1, nx)); this.targetLookY = Math.max(-1, Math.min(1, ny)); }
+      setLook() {}
+      setCameraPerson(nx) { if (nx !== null) this.targetX = nx * 90; }
       setState(s) { this.aiState = s || 'idle'; }
-      setMood(m) { this.mood = m || 'happy'; if (m === 'excited' || m === 'laughing') this.hopTime = 0.6; }
-      setVoiceLevel(v) { this.voiceLevel = Math.max(0, Math.min(1, v || 0)); }
-      setMicLevel(v) { this.micLevel = Math.max(0, Math.min(1, v || 0)); }
+      setMood(m) { this.mood = m || 'happy'; }
+      setVoiceLevel(v) { this.voiceLevel = v || 0; }
+      setMicLevel(v) { this.micLevel = v || 0; }
       triggerHop() { this.hopTime = 0.6; }
-      triggerWiggle() { this.hopTime = 0.45; }
-      triggerLearnBurst() { this.learnBurst = 1.5; this.hopTime = 0.7; }
+      triggerWave() { this.hopTime = 0.4; }
+      triggerLearnBurst() { this.hopTime = 0.7; }
       update(dt, t) {
-        const ctx = this.ctx;
-        if (!ctx) return;
+        const ctx = this.ctx; if (!ctx) return;
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         const w = this.canvas.clientWidth || window.innerWidth;
         const h = this.canvas.clientHeight || window.innerHeight;
         if (this.canvas.width !== Math.round(w * dpr) || this.canvas.height !== Math.round(h * dpr)) {
-          this.canvas.width = Math.round(w * dpr);
-          this.canvas.height = Math.round(h * dpr);
+          this.canvas.width = Math.round(w * dpr); this.canvas.height = Math.round(h * dpr);
         }
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
-
-        this.smoothVoice += (this.voiceLevel - this.smoothVoice) * Math.min(1, dt * 24);
-        this.smoothMic += (this.micLevel - this.smoothMic) * Math.min(1, dt * 18);
-        this.lookX += (this.targetLookX - this.lookX) * Math.min(1, dt * 7);
-        this.lookY += (this.targetLookY - this.lookY) * Math.min(1, dt * 7);
+        this.roamTimer -= dt;
+        if (this.roamTimer <= 0) { this.targetX = (Math.random() - 0.5) * 160; this.roamTimer = 3.2; }
+        this.posX += (this.targetX - this.posX) * Math.min(1, dt * 2.5);
         if (this.hopTime > 0) this.hopTime = Math.max(0, this.hopTime - dt);
-        if (this.learnBurst > 0) this.learnBurst = Math.max(0, this.learnBurst - dt);
-        this.blinkTimer -= dt;
-        if (this.blinkTimer <= 0) { this.blinking = 0.14; this.blinkTimer = 2 + Math.random() * 3; }
-        if (this.blinking > 0) this.blinking = Math.max(0, this.blinking - dt);
-
-        const cx = w / 2;
-        const cy = h * 0.45;
-        const s = Math.min(w, h) * 0.25;
-        const hopY = this.hopTime > 0 ? Math.abs(Math.sin(this.hopTime * Math.PI * 3.5)) * s * 0.22 : 0;
-        const breath = Math.sin(t * 2.2) * s * 0.025;
-        const energy = this.aiState === 'speaking' ? this.smoothVoice : (this.aiState === 'listening' ? this.smoothMic : 0);
-
-        const colors = { idle: '#a855f7', listening: '#38bdf8', thinking: '#fbbf24', speaking: '#ec4899' };
-        const ringColor = colors[this.aiState] || '#a855f7';
-
-        // Glowing Gemini-Live halo rings
-        ctx.save();
-        ctx.strokeStyle = ringColor;
-        ctx.globalAlpha = 0.25 + energy * 0.5;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(cx, cy - s * 0.05, s * (1.28 + energy * 0.22), 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.globalAlpha = 0.14 + energy * 0.35;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(cx, cy - s * 0.05, s * (1.52 + energy * 0.34), 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-
-        const bx = cx;
-        const by = cy - hopY + breath;
-
+        const cx = w / 2 + this.posX;
+        const cy = h * 0.48 - (this.hopTime > 0 ? Math.abs(Math.sin(this.hopTime * 10)) * 36 : 0);
+        const s = Math.min(w, h) * 0.17;
+        // Grass hill
+        ctx.fillStyle = '#2d8a3e';
+        ctx.beginPath(); ctx.ellipse(w / 2, h * 0.85, w * 0.65, h * 0.25, 0, 0, Math.PI * 2); ctx.fill();
         // Ears
-        const earBounce = energy * 0.18;
         for (const side of [-1, 1]) {
-          ctx.save();
-          ctx.translate(bx + side * s * 0.34, by - s * 0.56);
-          ctx.rotate(side * (0.16 - earBounce + Math.sin(t * 2.4) * 0.05));
-          ctx.fillStyle = '#faf8ff';
-          ctx.beginPath(); ctx.ellipse(0, -s * 0.48, s * 0.19, s * 0.58, 0, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = '#ffa8cb';
-          ctx.beginPath(); ctx.ellipse(0, -s * 0.46, s * 0.105, s * 0.44, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.save(); ctx.translate(cx + side * s * 0.25, cy - s * 0.72);
+          ctx.rotate(side * (this.mood === 'sad' || this.mood === 'offended' ? 0.95 : 0.28));
+          ctx.fillStyle = '#d6713a'; ctx.beginPath(); ctx.ellipse(0, -s * 0.55, s * 0.16, s * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffcfa0'; ctx.beginPath(); ctx.ellipse(0, -s * 0.52, s * 0.09, s * 0.48, 0, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
-
-        // Body
-        const bodyGrad = ctx.createRadialGradient(bx - s * 0.2, by + s * 0.45, s * 0.1, bx, by + s * 0.65, s * 0.85);
-        bodyGrad.addColorStop(0, '#ffffff'); bodyGrad.addColorStop(1, '#dfd6fa');
-        ctx.fillStyle = bodyGrad;
-        ctx.beginPath(); ctx.ellipse(bx, by + s * 0.68, s * 0.62, s * 0.7, 0, 0, Math.PI * 2); ctx.fill();
-
-        // Glowing AI chest crystal
-        ctx.save();
-        ctx.fillStyle = ringColor;
-        ctx.shadowColor = ringColor; ctx.shadowBlur = 16;
-        ctx.beginPath();
-        ctx.moveTo(bx, by + s * 0.28); ctx.lineTo(bx + s * 0.1, by + s * 0.41);
-        ctx.lineTo(bx, by + s * 0.54); ctx.lineTo(bx - s * 0.1, by + s * 0.41);
-        ctx.closePath(); ctx.fill();
-        ctx.restore();
-
-        // Head
-        const headGrad = ctx.createRadialGradient(bx - s * 0.22, by - s * 0.22, s * 0.12, bx, by, s * 0.85);
-        headGrad.addColorStop(0, '#ffffff'); headGrad.addColorStop(1, '#e6dffc');
-        ctx.fillStyle = headGrad;
-        ctx.beginPath(); ctx.ellipse(bx, by - s * 0.05, s * 0.68, s * 0.61, 0, 0, Math.PI * 2); ctx.fill();
-
-        // Cheeks blush
-        ctx.fillStyle = 'rgba(255, 110, 168, 0.34)';
-        ctx.beginPath(); ctx.ellipse(bx - s * 0.36, by + s * 0.12, s * 0.14, s * 0.09, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(bx + s * 0.36, by + s * 0.12, s * 0.14, s * 0.09, 0, 0, Math.PI * 2); ctx.fill();
-
-        // Eyes
-        const eyeH = this.blinking > 0 ? s * 0.02 : s * 0.145;
+        // Berry vest + bandana + head
+        ctx.fillStyle = '#c2255c'; ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.45, s * 0.45, s * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e11d48'; ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.04, s * 0.34, s * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#d6713a'; ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.36, s * 0.46, s * 0.46, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fde2bc'; ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.22, s * 0.34, s * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+        // Sky-blue cartoon eyes
         for (const side of [-1, 1]) {
-          const ex = bx + side * s * 0.25 + this.lookX * s * 0.04;
-          const ey = by - s * 0.1 + this.lookY * s * 0.03;
-          ctx.fillStyle = '#18102c';
-          ctx.beginPath(); ctx.ellipse(ex, ey, s * 0.115, eyeH, 0, 0, Math.PI * 2); ctx.fill();
-          if (this.blinking <= 0) {
-            ctx.fillStyle = '#6d28d9';
-            ctx.beginPath(); ctx.ellipse(ex, ey + s * 0.02, s * 0.075, s * 0.085, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#120a24';
-            ctx.beginPath(); ctx.arc(ex, ey + s * 0.01, s * 0.048, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath(); ctx.arc(ex + s * 0.038, ey - s * 0.045, s * 0.036, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(ex - s * 0.03, ey + s * 0.04, s * 0.016, 0, Math.PI * 2); ctx.fill();
-          }
+          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(cx + side * s * 0.17, cy - s * 0.42, s * 0.11, s * 0.15, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#2563eb'; ctx.beginPath(); ctx.arc(cx + side * s * 0.17, cy - s * 0.41, s * 0.065, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#0b0f1e'; ctx.beginPath(); ctx.arc(cx + side * s * 0.17, cy - s * 0.41, s * 0.036, 0, Math.PI * 2); ctx.fill();
         }
-
-        // Nose
-        ctx.fillStyle = '#ff5f96';
-        ctx.beginPath(); ctx.ellipse(bx, by + s * 0.04, s * 0.075, s * 0.052, 0, 0, Math.PI * 2); ctx.fill();
-
-        // Lip-sync mouth
-        const mOpen = this.aiState === 'speaking' ? (0.04 + this.smoothVoice * 0.16) * s : 0.035 * s;
-        ctx.fillStyle = '#6b1c40';
-        ctx.beginPath(); ctx.ellipse(bx, by + s * 0.19, s * 0.11, mOpen, 0, 0, Math.PI * 2); ctx.fill();
-        if (mOpen > s * 0.07) {
-          ctx.fillStyle = '#ff7aa8';
-          ctx.beginPath(); ctx.ellipse(bx, by + s * 0.19 + mOpen * 0.45, s * 0.065, mOpen * 0.42, 0, 0, Math.PI * 2); ctx.fill();
-        }
+        // Nose & mouth
+        ctx.fillStyle = '#5c2314'; ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.27, s * 0.08, s * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+        const mOpen = this.aiState === 'speaking' ? (0.05 + this.voiceLevel * 0.16) * s : 0.04 * s;
+        ctx.fillStyle = '#4a0e1f'; ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.12, s * 0.14, mOpen, 0, 0, Math.PI * 2); ctx.fill();
       }
     }
 
@@ -814,6 +768,10 @@
     const heroLiveBtn        = document.getElementById('heroLiveBtn');
     const endOrMuteBtn       = document.getElementById('endOrMuteBtn');
     const toggleTypeBtn      = document.getElementById('toggleTypeBtn');
+    const camToggleBtn       = document.getElementById('camToggleBtn');
+    const camPip             = document.getElementById('camPip');
+    const camVideo           = document.getElementById('camVideo');
+    const camPipTag          = document.getElementById('camPipTag');
     const quickTypeForm      = document.getElementById('quickTypeForm');
     const quickTypeInput     = document.getElementById('quickTypeInput');
     const liveHint           = document.getElementById('liveHint');
@@ -851,18 +809,19 @@
     })());
     const userName = tgUser.first_name || '';
 
-    // ---- App State (ALL declared BEFORE starting renderLoop!) ----
+    // ---- App State ----
     let bunny = null;
-    let uiState = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking'
+    let uiState = 'idle';
+    let currentMood = 'happy';
     let liveSessionActive = false;
     let voiceMuted = false;
     let selectedPreset = localStorage.getItem('bunny_voice_preset') || 'cartoon';
     let speechLang = localStorage.getItem('bunny_speech_lang') || 'uz-UZ';
     speechLangSelect.value = speechLang;
-    let bunnyName = 'Quvonch';
+    let bunnyName = 'Quyon Og‘a';
     const history = [];
 
-    // Audio playback + Real-Time Web Audio Analyser for Lip-Sync
+    // Audio playback & lip-sync
     let audioCtx = null;
     let voiceAnalyser = null;
     let voiceDataArr = null;
@@ -872,7 +831,7 @@
     let simVoiceLevel = 0;
     let listeningPulseBoost = 0;
 
-    // Speech Recognition (Web Speech API) + MediaRecorder fallback
+    // Speech Recognition + Audio Recorder Fallback
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
     let recRestartTimer = null;
@@ -881,7 +840,24 @@
     let recordedChunks = [];
     let isRecordingFallback = false;
     let hasGeminiBackend = false;
+    let hasGroqBackend = false;
     let isAsking = false;
+    let emptyRecCount = 0;
+    let langFallbackTried = false;
+
+    // ---- Real Webcam Vision State (MediaPipe Face + Hands + Live Snapshot!) ----
+    let camActive = false;
+    let faceLM = null;
+    let handLM = null;
+    let visionTimer = null;
+    let lastWaveReactionAt = 0;
+    let personSeen = false;
+    let personAbsentSince = 0;
+    let latestVisionSummary = '';
+    const snapCanvas = document.createElement('canvas');
+    snapCanvas.width = 320;
+    snapCanvas.height = 240;
+    const snapCtx = snapCanvas.getContext('2d');
 
     function ensureAudioCtx() {
       try {
@@ -906,8 +882,7 @@
             const v = (voiceDataArr[i] - 128) / 128;
             sum += v * v;
           }
-          const rms = Math.sqrt(sum / voiceDataArr.length);
-          bunny.setVoiceLevel(Math.min(1, rms * 4.2));
+          bunny.setVoiceLevel(Math.min(1, Math.sqrt(sum / voiceDataArr.length) * 4.3));
         } else {
           bunny.setVoiceLevel(simVoiceLevel);
         }
@@ -917,11 +892,28 @@
 
       if (uiState === 'listening') {
         listeningPulseBoost = Math.max(0, listeningPulseBoost - 0.03);
-        const gentleWave = 0.22 + Math.abs(Math.sin(t * 4.5)) * 0.22 + listeningPulseBoost * 0.55;
-        bunny.setMicLevel(Math.min(1, gentleWave));
+        bunny.setMicLevel(Math.min(1, 0.24 + Math.abs(Math.sin(t * 4.5)) * 0.22 + listeningPulseBoost * 0.55));
       } else {
         bunny.setMicLevel(0);
       }
+    }
+
+    const MOOD_STATUS = {
+      happy: 'Quvnoq',
+      excited: 'Hayajonda!',
+      wise: 'Bilimdon kayfiyatda',
+      curious: 'Qiziqib qarayapti',
+      laughing: 'Kulyapti 😄',
+      sad: 'Xafa bo‘ldi 😔',
+      offended: 'Arazladi! 😤',
+      surprised: 'Hayratda! 😮',
+      shy: 'Uyaldi 🥰',
+    };
+
+    function setMoodUI(mood) {
+      currentMood = mood || 'happy';
+      liveStage.setAttribute('data-mood', currentMood);
+      if (bunny) bunny.setMood(currentMood);
     }
 
     function setUIState(nextState, customLabel = '') {
@@ -930,7 +922,7 @@
       if (bunny) bunny.setState(nextState);
 
       const labels = {
-        idle: liveSessionActive ? 'Suhbat pauzada' : 'Jonli suhbatga tayyor',
+        idle: MOOD_STATUS[currentMood] || 'O‘rmonda sizni kutyapti',
         listening: 'Sizni tinglayapman...',
         thinking: 'O‘ylayapman...',
         speaking: 'Gapiryapman...',
@@ -939,16 +931,18 @@
 
       if (nextState === 'listening') {
         heroLiveBtn.textContent = '⏹';
-        liveHint.textContent = 'Gapiring — tugatsangiz quyoncha darhol javob beradi';
+        liveHint.textContent = isRecordingFallback
+          ? 'Gapiring, tugagach ⏹ bosing!'
+          : 'Gapiring — tugatsangiz quyon darhol javob beradi';
       } else if (nextState === 'thinking') {
         heroLiveBtn.textContent = '✨';
-        liveHint.textContent = 'Sun’iy intellekt javob tayyorlamoqda...';
+        liveHint.textContent = 'Bilimdon quyon o‘ylanmoqda...';
       } else if (nextState === 'speaking') {
         heroLiveBtn.textContent = '🎙️';
-        liveHint.textContent = 'Bo‘lib qo‘yish uchun quyonchani yoki mikrofonni bosing';
+        liveHint.textContent = 'Bo‘lib qo‘yish uchun quyonni yoki mikrofonni bosing';
       } else {
         heroLiveBtn.textContent = '🎙️';
-        liveHint.textContent = 'Mikrofonni bosing — xuddi Gemini Live kabi jonli gaplashing';
+        liveHint.textContent = '🎙️ Mikrofonni bosing — 📷 Kamerani yoqsangiz quyon sizni ko‘rib gaplashadi!';
       }
 
       if (liveSessionActive) {
@@ -969,6 +963,160 @@
       if (bunny) bunny.triggerLearnBurst();
       setTimeout(() => learnToast.classList.remove('show'), 4200);
     }
+
+    // ---- REAL WEBCAM VISION ENGINE (MediaPipe Face + Hand + AI Frame) ----
+    function captureWebcamSnapshot() {
+      if (!camActive || camVideo.readyState < 2) return '';
+      try {
+        snapCtx.drawImage(camVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+        return snapCanvas.toDataURL('image/jpeg', 0.62).split(',')[1] || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function runVisionTick() {
+      if (!camActive || camVideo.readyState < 2) return;
+      const now = performance.now();
+      const parts = [];
+
+      // 1. Face position & 52 facial expression blendshapes
+      if (faceLM) {
+        try {
+          const fres = faceLM.detectForVideo(camVideo, now);
+          const lm = fres.faceLandmarks?.[0];
+          const bs = fres.faceBlendshapes?.[0]?.categories || [];
+          if (lm && lm.length > 10) {
+            // Mirrored X so moving right in front of screen moves bunny gaze right!
+            const nose = lm[1];
+            const nx = (0.5 - nose.x) * 2.2;
+            const ny = (nose.y - 0.5) * 1.8;
+            if (bunny) bunny.setCameraPerson(nx, ny);
+
+            // Detect user returning after leaving!
+            if (!personSeen && personAbsentSince > 0 && Date.now() - personAbsentSince > 5000 && uiState === 'idle') {
+              if (bunny) { bunny.triggerHop(); bunny.triggerWave(); }
+              camPipTag.textContent = '👁️ Qaytib kelding!';
+            }
+            personSeen = true;
+            personAbsentSince = 0;
+
+            const getScore = (name) => bs.find((c) => c.categoryName === name)?.score || 0;
+            const smile = (getScore('mouthSmileLeft') + getScore('mouthSmileRight')) / 2;
+            const frown = (getScore('browDownLeft') + getScore('browDownRight') + getScore('mouthFrownLeft') + getScore('mouthFrownRight')) / 4;
+            const jawOpen = getScore('jawOpen');
+
+            // Estimate distance from inter-eye span
+            const eyeSpan = Math.hypot(lm[33].x - lm[263].x, lm[33].y - lm[263].y);
+            const distDesc = eyeSpan > 0.22 ? 'juda yaqin' : (eyeSpan < 0.1 ? 'uzoqroqda' : 'qulay masofada');
+            const posDesc = nx > 0.35 ? 'o‘ng tomonda' : (nx < -0.35 ? 'chap tomonda' : 'markazda');
+
+            let exprLabel = 'xotirjam';
+            let pipEmoji = '👀 Ko‘ryapman';
+            if (smile > 0.42) {
+              exprLabel = 'kulyapti va tabassum qilyapti';
+              pipEmoji = '😊 Tabassum ko‘ryapman';
+            } else if (jawOpen > 0.48) {
+              exprLabel = 'og‘zi ochiq / hayratda';
+              pipEmoji = '😮 Hayratda ko‘rinyapsan';
+            } else if (frown > 0.32) {
+              exprLabel = 'biroz jiddiy yoki xafa ko‘rinyapti';
+              pipEmoji = '🤔 O‘ychan ko‘rinyapsan';
+            }
+
+            camPipTag.textContent = pipEmoji;
+            parts.push(`Foydalanuvchi kamera qarshisida (${posDesc}, ${distDesc}), yuz ifodasi: ${exprLabel}.`);
+          } else {
+            if (personSeen) personAbsentSince = Date.now();
+            personSeen = false;
+            if (bunny) bunny.setCameraPerson(null, null);
+            camPipTag.textContent = '👀 Qayerdasan?';
+            parts.push('Hozir kamera qarshisida odam ko‘rinmayapti.');
+          }
+        } catch (e) {}
+      }
+
+      // 2. Hand wave / gesture detection
+      if (handLM) {
+        try {
+          const hres = handLM.detectForVideo(camVideo, now);
+          const hlm = hres.landmarks?.[0];
+          if (hlm) {
+            const wrist = hlm[0];
+            const tipDist = (i) => Math.hypot(hlm[i].x - wrist.x, hlm[i].y - wrist.y);
+            const openCount = [8, 12, 16, 20].filter((tip, idx) => tipDist(tip) > tipDist([6, 10, 14, 18][idx]) * 1.1).length;
+            if (openCount >= 4) {
+              camPipTag.textContent = '👋 Qo‘l silkitding!';
+              parts.push('Foydalanuvchi qo‘lini ko‘tarib salom beryapti (kafti ochiq).');
+              if (Date.now() - lastWaveReactionAt > 9000 && uiState === 'idle') {
+                lastWaveReactionAt = Date.now();
+                if (bunny) { bunny.triggerWave(); bunny.triggerHop(); }
+              }
+            } else if (openCount === 0) {
+              parts.push('Foydalanuvchi mushtini ko‘rsatyapti.');
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (parts.length > 0) latestVisionSummary = parts.join(' ');
+    }
+
+    async function toggleCamera() {
+      ensureAudioCtx();
+      if (camActive) {
+        camActive = false;
+        clearInterval(visionTimer);
+        visionTimer = null;
+        if (camVideo.srcObject) {
+          camVideo.srcObject.getTracks().forEach((tr) => tr.stop());
+          camVideo.srcObject = null;
+        }
+        camPip.classList.remove('active');
+        camToggleBtn.classList.remove('active');
+        latestVisionSummary = '';
+        if (bunny) bunny.setCameraPerson(null, null);
+        return;
+      }
+
+      try {
+        camToggleBtn.classList.add('active');
+        camPip.classList.add('active');
+        camPipTag.textContent = '📷 Kamera ochilmoqda...';
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        });
+        camVideo.srcObject = stream;
+        await camVideo.play();
+        camActive = true;
+        camPipTag.textContent = '🧠 Ko‘rish AI yuklanmoqda...';
+
+        // Lazy-load MediaPipe Face + Hand Vision from shared fx/vision.js
+        try {
+          const vis = await import('./fx/vision.js');
+          if (!faceLM) faceLM = await vis.createFace();
+          if (!handLM) handLM = await vis.createHands(1);
+          camPipTag.textContent = '👁️ Seni ko‘ryapman!';
+        } catch (vErr) {
+          console.warn('MediaPipe load fallback:', vErr);
+          camPipTag.textContent = '📷 Kamera faol';
+          latestVisionSummary = 'Kamera yoqiq va foydalanuvchi ekran qarshisida.';
+        }
+
+        clearInterval(visionTimer);
+        visionTimer = setInterval(runVisionTick, 180);
+        if (bunny) { bunny.triggerHop(); bunny.triggerWave(); }
+      } catch (err) {
+        camActive = false;
+        camPip.classList.remove('active');
+        camToggleBtn.classList.remove('active');
+        bunnySubtitle.textContent = 'Kameraga ruxsat berilmadi — brauzer sozlamasidan kameraga ruxsat bering!';
+      }
+    }
+
+    camToggleBtn.addEventListener('click', toggleCamera);
 
     // ---- Stop / Interrupt Speech ----
     function stopSpeaking() {
@@ -999,7 +1147,7 @@
         activeAudioEl = el;
 
         const fakeWave = setInterval(() => {
-          if (uiState === 'speaking') simVoiceLevel = 0.32 + Math.random() * 0.58;
+          if (uiState === 'speaking') simVoiceLevel = 0.34 + Math.random() * 0.56;
         }, 85);
 
         const done = () => {
@@ -1009,14 +1157,13 @@
           if (activeAudioEl === el) activeAudioEl = null;
           resolve();
         };
-
         el.onended = done;
         el.onerror = done;
         el.play().catch(done);
       });
     }
 
-    // ---- Cartoon Neural Voice Playback with Real-Time Lip-Sync ----
+    // ---- Cartoon Neural Voice Playback ----
     async function speakCartoonVoice(text, presetOverride = '') {
       stopSpeaking();
       if (!text) return;
@@ -1041,7 +1188,6 @@
         const arrayBuf = await resp.arrayBuffer();
         if (ctrl.signal.aborted) return;
 
-        // Try Web Audio API first (gives real 60 FPS AnalyserNode lip-sync)
         let playedWithWebAudio = false;
         const ctx = ensureAudioCtx();
         if (ctx && ctx.state === 'running') {
@@ -1054,7 +1200,6 @@
             voiceAnalyser = ctx.createAnalyser();
             voiceAnalyser.fftSize = 256;
             voiceDataArr = new Uint8Array(voiceAnalyser.frequencyBinCount);
-
             src.connect(voiceAnalyser);
             voiceAnalyser.connect(ctx.destination);
             activeAudioSource = src;
@@ -1067,12 +1212,10 @@
               };
               src.start(0);
             });
-          } catch (decodeErr) {
+          } catch (e) {
             playedWithWebAudio = false;
           }
         }
-
-        // Rock-solid HTMLAudioElement fallback so voice ALWAYS plays!
         if (!playedWithWebAudio && !ctrl.signal.aborted) {
           await playMp3ViaElement(arrayBuf, ctrl.signal);
         }
@@ -1083,11 +1226,8 @@
             try {
               const u = new SpeechSynthesisUtterance(text);
               u.lang = speechLang || 'uz-UZ';
-              u.pitch = 1.38;
-              u.rate = 1.04;
-              const sim = setInterval(() => {
-                if (uiState === 'speaking') simVoiceLevel = 0.3 + Math.random() * 0.5;
-              }, 100);
+              u.pitch = 1.45; u.rate = 1.05;
+              const sim = setInterval(() => { if (uiState === 'speaking') simVoiceLevel = 0.35 + Math.random() * 0.5; }, 100);
               u.onend = u.onerror = () => { clearInterval(sim); simVoiceLevel = 0; resolve(); };
               speechSynthesis.speak(u);
             } catch (e) { resolve(); }
@@ -1098,16 +1238,13 @@
         simVoiceLevel = 0;
         if (bunny) bunny.setVoiceLevel(0);
         if (!ctrl.signal.aborted) {
-          if (liveSessionActive) {
-            scheduleResumeListening(320);
-          } else {
-            setUIState('idle');
-          }
+          if (liveSessionActive) scheduleResumeListening(350);
+          else setUIState('idle');
         }
       }
     }
 
-    // ---- Send Question / Audio to Real AI ----
+    // ---- Send Question (+ Live Webcam Vision & Audio!) to Real AI ----
     async function askBunny({ message = '', audioBase64 = '', audioMime = '' }) {
       if (isAsking) return;
       isAsking = true;
@@ -1124,6 +1261,9 @@
 
       setUIState('thinking');
 
+      // Capture live webcam frame if camera is ON!
+      const imageBase64 = camActive && hasGeminiBackend ? captureWebcamSnapshot() : '';
+
       try {
         const resp = await fetch('/api/bunny-chat', {
           method: 'POST',
@@ -1132,6 +1272,8 @@
             message,
             audioBase64,
             audioMime,
+            imageBase64,
+            visionContext: camActive ? latestVisionSummary : '',
             history: history.slice(-12),
             userName,
             userId,
@@ -1143,17 +1285,13 @@
           history.push({ role: 'user', text: data.heard });
         }
 
-        const reply = data.reply || 'Voy, quloqlarim chalg‘ib qoldi! Yana bir marta so‘rab ko‘r-chi!';
-        if (bunny) bunny.setMood(data.mood || 'happy');
+        const reply = data.reply || 'Voy, quloqlarim chalg‘ib qoldi! Yana bir marta ayt-chi!';
+        setMoodUI(data.mood || 'happy');
         bunnySubtitle.textContent = reply;
         history.push({ role: 'bunny', text: reply });
 
-        if (typeof data.knowledgeCount === 'number') {
-          updateKnowledgeCounter(data.knowledgeCount);
-        }
-        if (Array.isArray(data.learned) && data.learned.length > 0) {
-          showLearnToast(data.learned);
-        }
+        if (typeof data.knowledgeCount === 'number') updateKnowledgeCounter(data.knowledgeCount);
+        if (Array.isArray(data.learned) && data.learned.length > 0) showLearnToast(data.learned);
 
         isAsking = false;
         await speakCartoonVoice(reply);
@@ -1179,7 +1317,7 @@
       }
     }
 
-    function scheduleResumeListening(delayMs = 350) {
+    function scheduleResumeListening(delayMs = 400) {
       clearTimeout(recRestartTimer);
       if (!liveSessionActive) return;
       recRestartTimer = setTimeout(() => {
@@ -1189,7 +1327,40 @@
       }, delayMs);
     }
 
-    let langFallbackTried = false;
+    async function startDirectAudioRecording() {
+      try {
+        recMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordedChunks = [];
+        const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+        mediaRecorder = new MediaRecorder(recMicStream, { mimeType: mime });
+        isRecordingFallback = true;
+        setUIState('listening', 'Gapiring, keyin ⏹ bosing');
+        userHeardLine.textContent = '🎙️ Ovozingiz yozilmoqda — gapirib bo‘lgach ⏹ bosing!';
+
+        mediaRecorder.ondataavailable = (ev) => {
+          if (ev.data && ev.data.size > 0) recordedChunks.push(ev.data);
+        };
+        mediaRecorder.onstop = async () => {
+          isRecordingFallback = false;
+          if (recMicStream) {
+            recMicStream.getTracks().forEach((tr) => tr.stop());
+            recMicStream = null;
+          }
+          const blob = new Blob(recordedChunks, { type: mime });
+          if (blob.size < 1200) { setUIState('idle'); return; }
+          const b64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(String(reader.result || '').split(',')[1] || '');
+            reader.readAsDataURL(blob);
+          });
+          askBunny({ audioBase64: b64, audioMime: mime });
+        };
+        mediaRecorder.start();
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
 
     async function beginListeningTurn() {
       if (!liveSessionActive) return;
@@ -1197,13 +1368,21 @@
       stopListeningHardware();
       ensureAudioCtx();
 
+      // If Gemini or Groq Whisper key is connected AND user is on Edge/Firefox/Telegram where Web Speech is shaky,
+      // OR if SpeechRec isn't available -> use ultra-accurate direct server audio transcription!
+      const isEdge = /Edg\//.test(navigator.userAgent);
+      if ((!SpeechRec || (isEdge && (hasGeminiBackend || hasGroqBackend))) && navigator.mediaDevices?.getUserMedia && window.MediaRecorder && (hasGeminiBackend || hasGroqBackend)) {
+        const ok = await startDirectAudioRecording();
+        if (ok) return;
+      }
+
       if (SpeechRec) {
         setUIState('listening');
         userHeardLine.textContent = '🎙️ Mikrofon yoqilmoqda...';
 
         const rec = new SpeechRec();
         rec.lang = speechLang || 'uz-UZ';
-        rec.continuous = false;
+        rec.continuous = true; // Keeps mic smoothly open in BOTH Edge & Chrome!
         rec.interimResults = true;
         rec.maxAlternatives = 1;
         recognition = rec;
@@ -1212,27 +1391,17 @@
         let latestPreview = '';
         let silenceSubmitTimer = null;
 
-        const submitCaptured = () => {
-          clearTimeout(silenceSubmitTimer);
-          const text = (finalTranscript || latestPreview).trim();
-          if (text) {
-            finalTranscript = '';
-            latestPreview = '';
-            askBunny({ message: text });
-          }
-        };
-
         rec.onaudiostart = () => {
           userHeardLine.textContent = '🎙️ Eshityapman — bemalol gapiring!';
-          listeningPulseBoost = 0.6;
+          listeningPulseBoost = 0.65;
         };
-
         rec.onspeechstart = () => {
           userHeardLine.textContent = '🗣️ Ovozingiz eshitilyapti...';
           listeningPulseBoost = 1.0;
         };
 
         rec.onresult = (ev) => {
+          emptyRecCount = 0;
           listeningPulseBoost = 1.0;
           let interim = '';
           for (let i = ev.resultIndex; i < ev.results.length; i++) {
@@ -1244,12 +1413,12 @@
           if (latestPreview) {
             userHeardLine.textContent = `“${latestPreview}”`;
             clearTimeout(silenceSubmitTimer);
-            // If user pauses for 1.35s after speaking, submit smoothly!
+            // Auto-send 1.4s after user finishes speaking!
             silenceSubmitTimer = setTimeout(() => {
-              if (recognition === rec && (finalTranscript.trim() || latestPreview.trim())) {
+              if (recognition === rec && latestPreview.trim()) {
                 try { rec.stop(); } catch (e) {}
               }
-            }, 1350);
+            }, 1400);
           }
         };
 
@@ -1259,7 +1428,7 @@
             liveSessionActive = false;
             setUIState('idle');
             userHeardLine.textContent = '⚠️ Mikrofonga ruxsat berilmagan';
-            bunnySubtitle.textContent = 'Brauzer manzil satridagi qulf/mikrofon belgisidan mikrofonga ruxsat bering yoki ⌨️ tugmasi orqali yozing!';
+            bunnySubtitle.textContent = 'Brauzer manzil satridagi qulf/mikrofon belgisidan ruxsat bering!';
             return;
           }
           if (ev.error === 'language-not-supported' && !langFallbackTried) {
@@ -1270,24 +1439,17 @@
             scheduleResumeListening(300);
             return;
           }
-          if (ev.error === 'audio-capture') {
+          if (ev.error === 'network' || ev.error === 'audio-capture') {
             liveSessionActive = false;
             setUIState('idle');
-            userHeardLine.textContent = '⚠️ Mikrofon topilmadi';
-            bunnySubtitle.textContent = 'Qurilmangizda mikrofon ulanmagan yoki boshqa dastur band qilgan. ⌨️ tugmasi orqali ham bemalol suhbatlashishingiz mumkin!';
-            return;
-          }
-          if (ev.error === 'network') {
-            liveSessionActive = false;
-            setUIState('idle');
-            userHeardLine.textContent = '⚠️ Ovozli tanish xizmati ulanmadi';
-            bunnySubtitle.textContent = 'Google Chrome brauzerida ovozli rejim eng zo‘r ishlaydi, yoki ⌨️ tugmasini bosib yozing — quyon baribir multfilm ovozida javob beradi!';
+            userHeardLine.textContent = isEdge
+              ? '⚠️ Microsoft Edge ovoz xizmati javob bermadi — Google Chrome’da oching!'
+              : '⚠️ Mikrofon xatoligi yuz berdi';
+            bunnySubtitle.textContent = 'Ovozli tanish Google Chrome brauzerida eng zo‘r ishlaydi (yoki ⌨️ tugmasidan yozing — quyon multfilm ovozida javob beradi)!';
             quickTypeForm.classList.add('open');
             return;
           }
-          if (liveSessionActive && uiState === 'listening') {
-            scheduleResumeListening(600);
-          }
+          if (liveSessionActive && uiState === 'listening') scheduleResumeListening(650);
         };
 
         rec.onend = () => {
@@ -1296,55 +1458,26 @@
           recognition = null;
           const text = (finalTranscript || latestPreview).trim();
           if (text) {
+            emptyRecCount = 0;
             askBunny({ message: text });
           } else if (liveSessionActive && uiState === 'listening') {
-            scheduleResumeListening(450);
+            emptyRecCount++;
+            if (emptyRecCount >= 3 && isEdge) {
+              // Edge sometimes silently ignores uz-UZ; notify clearly instead of looping silently!
+              liveSessionActive = false;
+              setUIState('idle');
+              userHeardLine.textContent = '💡 Edge’da o‘zbekcha mikrofon cheklangan';
+              bunnySubtitle.textContent = 'Ovozni aniq eshitishim uchun sahifani Google Chrome’da oching yoki ⚙️ Sozlamalarga bepul Gemini kalitini qo‘ying — hozircha ⌨️ tugmasidan yozsangiz ham multfilm ovozida javob beraman!';
+              quickTypeForm.classList.add('open');
+              emptyRecCount = 0;
+              return;
+            }
+            scheduleResumeListening(550);
           }
         };
 
-        try {
-          rec.start();
-        } catch (e) {
-          scheduleResumeListening(600);
-        }
+        try { rec.start(); } catch (e) { scheduleResumeListening(600); }
         return;
-      }
-
-      // Fallback for WebViews without Web Speech API: MediaRecorder -> Gemini Audio if configured
-      if (hasGeminiBackend && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) {
-        try {
-          recMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          recordedChunks = [];
-          const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-          mediaRecorder = new MediaRecorder(recMicStream, { mimeType: mime });
-          isRecordingFallback = true;
-          setUIState('listening', 'Gapiring, keyin ⏹ bosing...');
-          userHeardLine.textContent = '🎙️ Ovoz yozilmoqda... tugagach ⏹ bosing';
-
-          mediaRecorder.ondataavailable = (ev) => {
-            if (ev.data && ev.data.size > 0) recordedChunks.push(ev.data);
-          };
-          mediaRecorder.onstop = async () => {
-            isRecordingFallback = false;
-            if (recMicStream) {
-              recMicStream.getTracks().forEach((tr) => tr.stop());
-              recMicStream = null;
-            }
-            const blob = new Blob(recordedChunks, { type: mime });
-            if (blob.size < 1200) {
-              setUIState('idle');
-              return;
-            }
-            const b64 = await new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(String(reader.result || '').split(',')[1] || '');
-              reader.readAsDataURL(blob);
-            });
-            askBunny({ audioBase64: b64, audioMime: mime });
-          };
-          mediaRecorder.start();
-          return;
-        } catch (e) {}
       }
 
       liveSessionActive = false;
@@ -1352,11 +1485,12 @@
       quickTypeForm.classList.add('open');
       toggleTypeBtn.classList.add('active');
       quickTypeInput.focus();
-      bunnySubtitle.textContent = 'Bu brauzerda mikrofonli tanish cheklangan — Chrome brauzerda oching yoki pastdan yozing, quyon multfilm ovozida javob beradi!';
+      bunnySubtitle.textContent = 'Bu brauzerda ovozli tanish mavjud emas — Google Chrome’da oching yoki pastdan yozing!';
     }
 
     function endLiveSession() {
       liveSessionActive = false;
+      emptyRecCount = 0;
       stopListeningHardware();
       stopSpeaking();
       setUIState('idle');
@@ -1382,6 +1516,7 @@
       if (uiState === 'thinking') return;
 
       liveSessionActive = true;
+      emptyRecCount = 0;
       beginListeningTurn();
     });
 
@@ -1391,6 +1526,7 @@
         beginListeningTurn();
       } else if (bunny) {
         bunny.triggerHop();
+        bunny.triggerWave();
       }
     });
 
@@ -1423,13 +1559,13 @@
       askBunny({ message: t });
     });
 
-    // ---- Pointer eye tracking ----
+    // Pointer tracking when webcam is OFF
     window.addEventListener('pointermove', (e) => {
-      if (bunny) bunny.setLook((e.clientX / window.innerWidth - 0.5) * 2, (e.clientY / window.innerHeight - 0.5) * 2);
+      if (bunny && !camActive) bunny.setLook((e.clientX / window.innerWidth - 0.5) * 2, (e.clientY / window.innerHeight - 0.5) * 2);
     });
     window.addEventListener('touchmove', (e) => {
       const t = e.touches?.[0];
-      if (t && bunny) bunny.setLook((t.clientX / window.innerWidth - 0.5) * 2, (t.clientY / window.innerHeight - 0.5) * 2);
+      if (t && bunny && !camActive) bunny.setLook((t.clientX / window.innerWidth - 0.5) * 2, (t.clientY / window.innerHeight - 0.5) * 2);
     }, { passive: true });
 
     // ---- Knowledge Vault & Settings ----
@@ -1439,7 +1575,7 @@
       const pct = Math.min(100, Math.max(8, Math.round((count / 40) * 100)));
       iqFill.style.width = pct + '%';
       let lvl = 'Boshlang‘ich';
-      if (count >= 40) lvl = 'Daho AI Quyon 🏆';
+      if (count >= 40) lvl = 'Daho Quyon Og‘a 🏆';
       else if (count >= 20) lvl = 'Professor Quyon 🎓';
       else if (count >= 10) lvl = 'Bilimdon Quyon 🧠';
       else if (count >= 3)  lvl = 'O‘rganuvchi Quyon ✨';
@@ -1484,7 +1620,7 @@
         renderKnowledgeList(data.items || []);
 
         const cfg = data.config || {};
-        bunnyName = cfg.bunnyName || 'Quvonch';
+        bunnyName = cfg.bunnyName || 'Quyon Og‘a';
         bunnyNameLabel.textContent = `${bunnyName} AI`;
         bunnyNameInput.value = bunnyName;
         customPersonaInput.value = cfg.customPersona || '';
@@ -1492,14 +1628,15 @@
         syncPresetUI();
 
         hasGeminiBackend = Boolean(cfg.hasGemini);
+        hasGroqBackend = Boolean(cfg.hasGroq);
         if (cfg.hasGemini) {
-          aiStatusNote.textContent = '🟢 Google Gemini AI ulangan (eng yuqori sifat + ovozli tahlil faol)!';
+          aiStatusNote.textContent = '🟢 Google Gemini AI ulangan — kamera orqali to‘liq ko‘rish va ovozni tahlil qilish faol!';
         } else if (cfg.hasGroq) {
-          aiStatusNote.textContent = '🟢 Groq Llama 3.3 70B ulangan!';
+          aiStatusNote.textContent = '🟢 Groq Llama 3.3 + Whisper ovoz tanish ulangan!';
         } else if (cfg.hasOpenai) {
           aiStatusNote.textContent = '🟢 OpenAI GPT-4o-mini ulangan!';
         } else {
-          aiStatusNote.textContent = '🟢 Ichki sun’iy intellekt faol (bepul). Istasangiz Gemini API kalitini ham ulashingiz mumkin.';
+          aiStatusNote.textContent = '🟢 Ichki sun’iy intellekt + MediaPipe kamera ko‘rishi tayyor! Gemini kalitini qo‘shsangiz yanada kuchayadi.';
         }
       } catch (e) {}
     }
@@ -1526,7 +1663,7 @@
 
     testVoiceBtn.addEventListener('click', () => {
       ensureAudioCtx();
-      speakCartoonVoice(`Salom! Mening ismim ${bunnyName}! Ovozim sizga yoqdimi?`, selectedPreset);
+      speakCartoonVoice(`Hey salom do‘stim! Men ${bunnyName}man — quloqlarim dikkayib senga qarab turibman, ovozim yoqdimi?`, selectedPreset);
     });
 
     saveKbBtn.addEventListener('click', async () => {
@@ -1538,12 +1675,7 @@
         const r = await fetch('/api/bunny-knowledge', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: kbTitleInput.value.trim(),
-            content,
-            source: 'manual',
-            userId,
-          }),
+          body: JSON.stringify({ title: kbTitleInput.value.trim(), content, source: 'manual', userId }),
         });
         const data = await r.json();
         if (data.ok) {
@@ -1567,12 +1699,7 @@
       const r = await fetch('/api/bunny-knowledge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: file.name,
-          content: text.slice(0, 40000),
-          source: 'file',
-          userId,
-        }),
+        body: JSON.stringify({ title: file.name, content: text.slice(0, 40000), source: 'file', userId }),
       });
       const data = await r.json();
       kbFileInput.value = '';
@@ -1588,12 +1715,10 @@
       try {
         const payload = {
           voicePreset: selectedPreset,
-          bunnyName: bunnyNameInput.value.trim() || 'Quvonch',
+          bunnyName: bunnyNameInput.value.trim() || 'Quyon Og‘a',
           customPersona: customPersonaInput.value.trim(),
         };
-        if (geminiKeyInput.value.trim()) {
-          payload.geminiKey = geminiKeyInput.value.trim();
-        }
+        if (geminiKeyInput.value.trim()) payload.geminiKey = geminiKeyInput.value.trim();
         await fetch('/api/bunny-settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1609,35 +1734,27 @@
       }
     });
 
-    openKnowledgeBtn.addEventListener('click', () => {
-      loadKnowledgeAndConfig();
-      knowledgeModal.classList.add('open');
-    });
-    openSettingsBtn.addEventListener('click', () => {
-      loadKnowledgeAndConfig();
-      settingsModal.classList.add('open');
-    });
+    openKnowledgeBtn.addEventListener('click', () => { loadKnowledgeAndConfig(); knowledgeModal.classList.add('open'); });
+    openSettingsBtn.addEventListener('click', () => { loadKnowledgeAndConfig(); settingsModal.classList.add('open'); });
     document.querySelectorAll('[data-close]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        document.getElementById(btn.dataset.close)?.classList.remove('open');
-      });
+      btn.addEventListener('click', () => { document.getElementById(btn.dataset.close)?.classList.remove('open'); });
     });
     [knowledgeModal, settingsModal].forEach((m) => {
-      m.addEventListener('click', (e) => {
-        if (e.target === m) m.classList.remove('open');
-      });
+      m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); });
     });
 
-    // ---- Init Bunny (3D WebGL with automatic 2D Cartoon fallback!) ----
+    // ---- Init Full-Body 3D Adventurous Hare (with 2D fallback) ----
     async function initBunnyRenderer() {
       try {
-        const mod = await import('./fx/bunny3d.js?v=3');
+        const mod = await import('./fx/bunny3d.js?v=4');
         bunny = new mod.Bunny3D(canvas);
       } catch (err) {
-        console.warn('3D Bunny fallback to 2D Cartoon Bunny:', err);
-        bunny = new Bunny2D(canvas);
+        console.warn('3D Hare fallback to 2D:', err);
+        bunny = new Hare2D(canvas);
       }
       bunny.setState(uiState);
+      bunny.setMood(currentMood);
+      bunny.triggerWave();
       let lastT = performance.now();
       function renderLoop(now) {
         requestAnimationFrame(renderLoop);
@@ -1653,8 +1770,8 @@
     initBunnyRenderer();
     loadKnowledgeAndConfig();
     bunnySubtitle.textContent = userName
-      ? `Salom, ${userName}! Men Quvonchman — pastdagi mikrofonni bosing va xuddi Gemini Live kabi jonli gaplashamiz!`
-      : 'Salom! Men Quvonchman — pastdagi mikrofonni bosing, menga istalgan savol bering va yangi bilimlar o‘rgating!';
+      ? `Hey ${userName}! Men Quyon Og‘aman — 📷 kamerani yoqib meni ko‘rishimga ruxsat ber va 🎙️ mikrofonni bosib gaplashamiz!`
+      : 'Hey salom! Men Quyon Og‘aman — 📷 kamerani yoqsang seni ko‘raman, 🎙️ mikrofonni bossang multfilm ovozimda javob beraman!';
   </script>
 </body>
 </html>

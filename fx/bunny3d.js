@@ -1,5 +1,12 @@
 import * as THREE from 'three';
 
+/**
+ * Quyon Og'a / Bilimdon Quyon — Full-body animated cartoon hare
+ * Inspired by classic storybook cartoon hare: warm ginger-brown fur, long expressive ears,
+ * sky-blue eyes, red bandana neckerchief, golden-yellow shirt, berry vest, adventure trousers,
+ * big expressive feet, autonomous walking/hopping around a sunny forest glade, webcam eye/body tracking,
+ * real-time audio lip-sync, and rich Marusya-style emotions (happy, excited, wise, laughing, sad, offended, surprised, shy).
+ */
 export class Bunny3D {
   constructor(canvas) {
     this.canvas = canvas;
@@ -15,378 +22,527 @@ export class Bunny3D {
     this.renderer.toneMappingExposure = 1.08;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 60);
-    this.camera.position.set(0, 0.45, 5.4);
+    this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 80);
+    // Pulled back slightly so the whole lively bunny stands clearly in his forest glade!
+    this.camera.position.set(0, 1.05, 7.6);
+    this.camera.lookAt(0, 0.65, 0);
 
-    // Cinematic Pixar-style 4-point lighting
-    this.scene.add(new THREE.HemisphereLight(0xf3e8ff, 0x1e1b4b, 1.15));
+    // Warm storybook sunlight + forest bounce lighting
+    this.hemiLight = new THREE.HemisphereLight(0xc7ecff, 0x2d5a27, 1.2);
+    this.scene.add(this.hemiLight);
 
-    const key = new THREE.DirectionalLight(0xfff7ed, 1.55);
-    key.position.set(2.8, 4.5, 4.2);
-    this.scene.add(key);
+    this.sunLight = new THREE.DirectionalLight(0xfff5d6, 1.65);
+    this.sunLight.position.set(4.5, 7.5, 5.5);
+    this.scene.add(this.sunLight);
 
-    this.rimLight = new THREE.DirectionalLight(0xa855f7, 1.15);
-    this.rimLight.position.set(-3.4, 2.8, -2.5);
+    this.rimLight = new THREE.DirectionalLight(0x60a5fa, 0.85);
+    this.rimLight.position.set(-4.5, 4.0, -3.5);
     this.scene.add(this.rimLight);
 
-    this.auraLight = new THREE.PointLight(0x38bdf8, 0.9, 12);
-    this.auraLight.position.set(0, -0.6, 2.4);
-    this.scene.add(this.auraLight);
+    this.magicLight = new THREE.PointLight(0x38bdf8, 0.95, 14);
+    this.magicLight.position.set(0, 1.2, 2.2);
+    this.scene.add(this.magicLight);
 
-    this.root = new THREE.Group();
-    this.root.position.y = 0.12;
-    this.scene.add(this.root);
+    this._buildForestWorld();
 
-    this._buildAuraRings();
-    this._buildBunny();
-    this._buildSparkles();
-    this._buildThinkOrbits();
-    this._buildLearnBurst();
+    // Character root moves & turns freely across the clearing!
+    this.charRoot = new THREE.Group();
+    this.charRoot.position.set(0, 0, 0);
+    this.scene.add(this.charRoot);
 
-    // Animation & interactive state
+    this._buildHareCharacter();
+    this._buildMagicFireflies();
+    this._buildEmotionProps();
+
+    // ---- Autonomous locomotion & interactive state ----
+    this.posX = 0;
+    this.posZ = 0;
+    this.targetX = 0;
+    this.targetZ = 0;
+    this.facingYaw = 0;
+    this.targetYaw = 0;
+    this.walkPhase = 0;
+    this.roamTimer = 2.6;
+
     this.lookX = 0;
     this.lookY = 0;
     this.targetLookX = 0;
     this.targetLookY = 0;
+    this.camUserX = null; // From real webcam face tracking!
+    this.camUserY = null;
+
     this.aiState = 'idle'; // 'idle' | 'listening' | 'thinking' | 'speaking'
-    this.mood = 'happy';   // 'happy' | 'curious' | 'excited' | 'laughing' | 'shy' | 'wise'
+    this.mood = 'happy';   // 'happy'|'excited'|'wise'|'curious'|'laughing'|'sad'|'offended'|'surprised'|'shy'
     this.voiceLevel = 0;
     this.smoothVoice = 0;
     this.micLevel = 0;
     this.smoothMic = 0;
 
-    this.blinkTimer = 2.4;
+    this.blinkTimer = 2.2;
     this.blinking = 0;
     this.hopTime = 0;
-    this.blushBoost = 0;
+    this.waveTime = 0;
     this.learnBurstTime = 0;
-    this.wiggleTime = 0;
+    this.blushBoost = 0;
+    this.footTapPhase = 0;
 
-    this._curAuraColor = new THREE.Color(0x8b5cf6);
-    this._targetAuraColor = new THREE.Color(0x8b5cf6);
+    this._curRingColor = new THREE.Color(0x38bdf8);
+    this._targetRingColor = new THREE.Color(0x38bdf8);
   }
 
-  _buildAuraRings() {
-    // Glowing Gemini-Live-style voice halo rings behind & below bunny
-    const ringGeo1 = new THREE.TorusGeometry(1.42, 0.022, 16, 80);
-    this.haloMat1 = new THREE.MeshBasicMaterial({
-      color: 0xa855f7,
-      transparent: true,
-      opacity: 0.42,
-      blending: THREE.AdditiveBlending,
-    });
-    this.haloRing1 = new THREE.Mesh(ringGeo1, this.haloMat1);
-    this.haloRing1.position.set(0, 0.42, -0.85);
-    this.root.add(this.haloRing1);
+  _buildForestWorld() {
+    this.world = new THREE.Group();
+    this.scene.add(this.world);
 
-    const ringGeo2 = new THREE.TorusGeometry(1.72, 0.014, 14, 96);
-    this.haloMat2 = new THREE.MeshBasicMaterial({
+    // Sunny grassy clearing hill
+    const meadow = new THREE.Mesh(
+      new THREE.CylinderGeometry(5.6, 6.8, 0.7, 48),
+      new THREE.MeshStandardMaterial({ color: 0x3b8c3b, roughness: 0.92 })
+    );
+    meadow.position.set(0, -0.35, -0.2);
+    this.world.add(meadow);
+
+    // Warm sunlit dirt path ring in center
+    const pathDisc = new THREE.Mesh(
+      new THREE.CircleGeometry(2.45, 42),
+      new THREE.MeshStandardMaterial({ color: 0x6ea848, roughness: 0.95 })
+    );
+    pathDisc.rotation.x = -Math.PI / 2;
+    pathDisc.position.set(0, 0.008, 0.1);
+    this.world.add(pathDisc);
+
+    // Voice-reactive magic ground ring around the clearing
+    this.groundRingMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
-      opacity: 0.24,
-      blending: THREE.AdditiveBlending,
-    });
-    this.haloRing2 = new THREE.Mesh(ringGeo2, this.haloMat2);
-    this.haloRing2.position.set(0, 0.42, -1.05);
-    this.root.add(this.haloRing2);
-
-    // Floating holographic pedestal disc
-    this.pedestalMat = new THREE.MeshBasicMaterial({
-      color: 0x8b5cf6,
-      transparent: true,
-      opacity: 0.2,
+      opacity: 0.35,
       side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
     });
-    this.pedestal = new THREE.Mesh(new THREE.RingGeometry(0.45, 1.38, 64), this.pedestalMat);
-    this.pedestal.rotation.x = -Math.PI / 2;
-    this.pedestal.position.y = -0.82;
-    this.root.add(this.pedestal);
+    this.groundRing = new THREE.Mesh(new THREE.RingGeometry(1.55, 1.72, 64), this.groundRingMat);
+    this.groundRing.rotation.x = -Math.PI / 2;
+    this.groundRing.position.set(0, 0.02, 0);
+    this.world.add(this.groundRing);
+
+    // Soft character shadow blob on grass (follows charRoot X/Z)
+    this.shadowBlob = new THREE.Mesh(
+      new THREE.CircleGeometry(0.68, 28),
+      new THREE.MeshBasicMaterial({ color: 0x0f2b12, transparent: true, opacity: 0.34 })
+    );
+    this.shadowBlob.rotation.x = -Math.PI / 2;
+    this.shadowBlob.position.set(0, 0.016, 0);
+    this.world.add(this.shadowBlob);
+
+    // Stylized storybook trees & bushes framing the glade!
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6e4427, roughness: 0.9 });
+    const leafMat1 = new THREE.MeshStandardMaterial({ color: 0x1f7a3a, roughness: 0.8 });
+    const leafMat2 = new THREE.MeshStandardMaterial({ color: 0x2da147, roughness: 0.78 });
+    const bushMat  = new THREE.MeshStandardMaterial({ color: 0x268c3e, roughness: 0.85 });
+
+    const treeSpecs = [
+      [-4.1, -2.8, 1.25],
+      [-2.8, -3.9, 1.05],
+      [3.9, -2.9, 1.3],
+      [2.6, -4.1, 1.0],
+      [0.2, -4.8, 1.15],
+    ];
+    for (const [tx, tz, sc] of treeSpecs) {
+      const tree = new THREE.Group();
+      tree.position.set(tx, 0, tz);
+      tree.scale.setScalar(sc);
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 2.2, 10), trunkMat);
+      trunk.position.y = 1.0;
+      tree.add(trunk);
+      const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.95, 16, 14), leafMat1);
+      c1.position.set(0, 2.35, 0);
+      const c2 = new THREE.Mesh(new THREE.SphereGeometry(0.75, 14, 12), leafMat2);
+      c2.position.set(-0.55, 1.95, 0.25);
+      const c3 = new THREE.Mesh(new THREE.SphereGeometry(0.72, 14, 12), leafMat2);
+      c3.position.set(0.55, 2.0, 0.15);
+      tree.add(c1, c2, c3);
+      this.world.add(tree);
+    }
+
+    // Little colorful meadow flowers & bushes
+    const flowerColors = [0xfef08a, 0xf9a8d4, 0x93c5fd, 0xfdba74];
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      const r = 2.6 + (i % 3) * 0.75;
+      const fx = Math.cos(a) * r;
+      const fz = Math.sin(a) * r * 0.75 - 0.6;
+      if (fz > 1.4 && Math.abs(fx) < 1.8) continue;
+      const flower = new THREE.Mesh(
+        new THREE.SphereGeometry(0.075, 8, 8),
+        new THREE.MeshStandardMaterial({ color: flowerColors[i % flowerColors.length], roughness: 0.5 })
+      );
+      flower.position.set(fx, 0.06, fz);
+      this.world.add(flower);
+    }
+
+    for (const [bx, bz, s] of [[-2.9, -1.3, 0.7], [3.0, -1.5, 0.75], [-1.9, -2.5, 0.65], [1.9, -2.7, 0.7]]) {
+      const bush = new THREE.Mesh(new THREE.SphereGeometry(s, 14, 12), bushMat);
+      bush.scale.set(1.3, 0.72, 1.0);
+      bush.position.set(bx, s * 0.32, bz);
+      this.world.add(bush);
+    }
   }
 
-  _buildBunny() {
-    const fur = new THREE.MeshStandardMaterial({ color: 0xfbf9ff, roughness: 0.62, metalness: 0.04 });
-    const furSoft = new THREE.MeshStandardMaterial({ color: 0xeee8ff, roughness: 0.7, metalness: 0.02 });
-    const bellyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.78, metalness: 0.01 });
-    const innerEar = new THREE.MeshStandardMaterial({ color: 0xff9ec4, roughness: 0.52, metalness: 0.03 });
-    const noseMat = new THREE.MeshStandardMaterial({ color: 0xff5f96, roughness: 0.35, metalness: 0.08 });
-    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x110d20, roughness: 0.06, metalness: 0.35 });
-    const glintMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    this.blushMat = new THREE.MeshBasicMaterial({ color: 0xff6ea8, transparent: true, opacity: 0.36 });
-    const mouthCavityMat = new THREE.MeshStandardMaterial({ color: 0x5c1836, roughness: 0.6 });
-    const tongueMat = new THREE.MeshStandardMaterial({ color: 0xff7aa8, roughness: 0.4 });
-    const toothMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
-    const browMat = new THREE.MeshStandardMaterial({ color: 0xd8d0ee, roughness: 0.65 });
+  _buildHareCharacter() {
+    // Authentic warm ginger/cinnamon cartoon hare palette matching the uploaded poster!
+    const furMain   = new THREE.MeshStandardMaterial({ color: 0xd6713a, roughness: 0.64, metalness: 0.03 });
+    const furDark   = new THREE.MeshStandardMaterial({ color: 0xb55524, roughness: 0.68, metalness: 0.02 });
+    const furCream  = new THREE.MeshStandardMaterial({ color: 0xfde2bc, roughness: 0.72, metalness: 0.02 });
+    const innerEar  = new THREE.MeshStandardMaterial({ color: 0xffcfa0, roughness: 0.6 });
+    const shirtMat  = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.6 });  // Yellow sleeves
+    const vestMat   = new THREE.MeshStandardMaterial({ color: 0xc2255c, roughness: 0.55 }); // Berry-red vest
+    const bandanaMat= new THREE.MeshStandardMaterial({ color: 0xe11d48, roughness: 0.5 });  // Red neckerchief
+    const pantsMat  = new THREE.MeshStandardMaterial({ color: 0x7c5836, roughness: 0.78 }); // Adventure trousers
+    const noseMat   = new THREE.MeshStandardMaterial({ color: 0x5c2314, roughness: 0.32 });
+    const whiteMat  = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.12 });
+    const irisMat   = new THREE.MeshBasicMaterial({ color: 0x2563eb }); // Bright sky-blue cartoon eyes!
+    const pupilMat  = new THREE.MeshStandardMaterial({ color: 0x0b0f1e, roughness: 0.08 });
+    const glintMat  = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const mouthMat  = new THREE.MeshStandardMaterial({ color: 0x4a0e1f, roughness: 0.6 });
+    const tongueMat = new THREE.MeshStandardMaterial({ color: 0xff6b8b, roughness: 0.4 });
+    this.blushMat   = new THREE.MeshBasicMaterial({ color: 0xff6b81, transparent: true, opacity: 0.25 });
 
-    // ---- Body ----
+    // Whole articulated body
     this.body = new THREE.Group();
-    this.root.add(this.body);
+    this.charRoot.add(this.body);
 
-    const torso = new THREE.Mesh(new THREE.SphereGeometry(0.68, 36, 30), fur);
-    torso.scale.set(0.96, 1.08, 0.9);
-    torso.position.y = -0.14;
-    this.body.add(torso);
+    // ---- Legs & Big Expressive Cartoon Hare Feet ----
+    this.legs = [];
+    for (const side of [-1, 1]) {
+      const legPivot = new THREE.Group();
+      legPivot.position.set(side * 0.2, 0.56, 0);
 
-    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.47, 26, 22), bellyMat);
-    belly.scale.set(0.88, 1.0, 0.44);
-    belly.position.set(0, -0.18, 0.44);
-    this.body.add(belly);
+      // Thigh / trousers leg
+      const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.145, 0.24, 10, 14), pantsMat);
+      thigh.position.set(0, -0.18, 0.02);
+      legPivot.add(thigh);
 
-    // Glowing AI Crystal Pendant on chest (changes color with AI state!)
-    const collar = new THREE.Mesh(
-      new THREE.TorusGeometry(0.37, 0.035, 12, 36),
-      new THREE.MeshStandardMaterial({ color: 0x6d28d9, roughness: 0.35, metalness: 0.45 })
-    );
-    collar.rotation.x = Math.PI / 2 + 0.18;
-    collar.position.set(0, 0.27, 0.06);
-    this.body.add(collar);
+      // Lower ankle fur
+      const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.16, 8, 12), furMain);
+      shin.position.set(0, -0.38, -0.02);
+      legPivot.add(shin);
 
+      // Big classic cartoon hare foot!
+      const foot = new THREE.Group();
+      foot.position.set(0, -0.49, 0.14);
+      const footMain = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 14), furMain);
+      footMain.scale.set(0.88, 0.52, 2.05);
+      foot.add(footMain);
+      const footSole = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 12), furCream);
+      footSole.scale.set(0.75, 0.28, 1.75);
+      footSole.position.set(0, -0.04, 0.02);
+      foot.add(footSole);
+      legPivot.add(foot);
+
+      this.body.add(legPivot);
+      this.legs.push({ pivot: legPivot, foot });
+    }
+
+    // ---- Torso (Adventure Trousers + Berry Vest + Yellow Shirt!) ----
+    this.torsoGroup = new THREE.Group();
+    this.torsoGroup.position.set(0, 0.56, 0);
+    this.body.add(this.torsoGroup);
+
+    // Hips / trousers
+    const hips = new THREE.Mesh(new THREE.SphereGeometry(0.35, 22, 18), pantsMat);
+    hips.scale.set(1.05, 0.85, 0.92);
+    hips.position.y = 0.08;
+    this.torsoGroup.add(hips);
+
+    // Fluffy tail peeking out back
+    this.tail = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 14), furCream);
+    this.tail.position.set(0, 0.08, -0.38);
+    this.torsoGroup.add(this.tail);
+
+    // Berry vest torso
+    const vest = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.62, 24), vestMat);
+    vest.position.y = 0.45;
+    this.torsoGroup.add(vest);
+
+    // Yellow shirt V-front inset
+    const shirtFront = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 16), shirtMat);
+    shirtFront.scale.set(0.65, 1.15, 0.48);
+    shirtFront.position.set(0, 0.50, 0.22);
+    this.torsoGroup.add(shirtFront);
+
+    // Subtle glowing AI badge button on vest
     this.gemMat = new THREE.MeshStandardMaterial({
       color: 0x38bdf8,
       emissive: 0x38bdf8,
-      emissiveIntensity: 0.9,
-      roughness: 0.15,
-      metalness: 0.3,
+      emissiveIntensity: 0.8,
+      roughness: 0.2,
     });
-    this.chestGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), this.gemMat);
-    this.chestGem.position.set(0, 0.14, 0.57);
-    this.chestGem.scale.set(0.95, 1.15, 0.7);
-    this.body.add(this.chestGem);
+    const vestBtn = new THREE.Mesh(new THREE.OctahedronGeometry(0.065, 0), this.gemMat);
+    vestBtn.position.set(0.14, 0.56, 0.28);
+    this.torsoGroup.add(vestBtn);
+    this.chestGem = vestBtn;
 
-    // Fluffy tail
-    this.tail = new THREE.Mesh(new THREE.SphereGeometry(0.24, 18, 16), fur);
-    this.tail.position.set(0, -0.45, -0.62);
-    this.body.add(this.tail);
+    // Red Bandana Neckerchief + two lively knotted tails (right from the poster!)
+    const bandana = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.075, 12, 28), bandanaMat);
+    bandana.rotation.x = Math.PI / 2 + 0.14;
+    bandana.position.set(0, 0.77, 0.02);
+    this.torsoGroup.add(bandana);
 
-    // Feet with pink paw pads
-    for (const x of [-0.33, 0.33]) {
-      const foot = new THREE.Mesh(new THREE.SphereGeometry(0.23, 20, 18), fur);
-      foot.scale.set(0.96, 0.62, 1.42);
-      foot.position.set(x, -0.72, 0.27);
-      this.body.add(foot);
-      for (let i = 0; i < 3; i++) {
-        const toe = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), furSoft);
-        toe.position.set(x + (i - 1) * 0.085, -0.78, 0.52);
-        this.body.add(toe);
-      }
+    this.bandanaTail1 = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.28, 10), bandanaMat);
+    this.bandanaTail1.position.set(-0.18, 0.68, 0.16);
+    this.bandanaTail1.rotation.z = 0.75;
+    this.bandanaTail1.rotation.x = 0.35;
+    this.torsoGroup.add(this.bandanaTail1);
+
+    this.bandanaTail2 = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 10), bandanaMat);
+    this.bandanaTail2.position.set(-0.24, 0.74, 0.06);
+    this.bandanaTail2.rotation.z = 1.1;
+    this.torsoGroup.add(this.bandanaTail2);
+
+    // ---- Articulated Cartoon Arms (Yellow Sleeves + Ginger Paws/Fists) ----
+    this.arms = [];
+    for (const side of [-1, 1]) {
+      const shoulder = new THREE.Group();
+      shoulder.position.set(side * 0.33, 0.69, 0.02);
+
+      // Yellow rolled-up shirt sleeve
+      const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.105, 0.24, 10, 14), shirtMat);
+      sleeve.position.set(side * 0.05, -0.15, 0.02);
+      sleeve.rotation.z = side * 0.22;
+      shoulder.add(sleeve);
+
+      // Elbow pivot
+      const elbow = new THREE.Group();
+      elbow.position.set(side * 0.09, -0.31, 0.03);
+      const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.078, 0.2, 10, 12), furMain);
+      forearm.position.set(0, -0.12, 0.08);
+      forearm.rotation.x = -0.35;
+      elbow.add(forearm);
+
+      // Expressive cartoon fist / paw
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 14), furMain);
+      hand.scale.set(1.0, 0.92, 1.12);
+      hand.position.set(0, -0.24, 0.16);
+      elbow.add(hand);
+
+      shoulder.add(elbow);
+      this.torsoGroup.add(shoulder);
+      this.arms.push({ shoulder, elbow });
     }
 
-    // Arms / Paws
-    this.leftArm = new THREE.Group();
-    this.leftArm.position.set(-0.62, 0.02, 0.02);
-    this.body.add(this.leftArm);
-    const lArmMesh = new THREE.Mesh(new THREE.SphereGeometry(0.19, 18, 16), fur);
-    lArmMesh.scale.set(0.82, 1.24, 0.82);
-    this.leftArm.add(lArmMesh);
-    const lPaw = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 12), fur);
-    lPaw.position.set(-0.04, -0.25, 0.28);
-    this.leftArm.add(lPaw);
-
-    this.rightArm = new THREE.Group();
-    this.rightArm.position.set(0.62, 0.02, 0.02);
-    this.body.add(this.rightArm);
-    const rArmMesh = new THREE.Mesh(new THREE.SphereGeometry(0.19, 18, 16), fur);
-    rArmMesh.scale.set(0.82, 1.24, 0.82);
-    this.rightArm.add(rArmMesh);
-    const rPaw = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 12), fur);
-    rPaw.position.set(0.04, -0.25, 0.28);
-    this.rightArm.add(rPaw);
-
-    // ---- Head ----
+    // ---- Expressive Cartoon Hare Head ----
     this.head = new THREE.Group();
-    this.head.position.set(0, 0.69, 0.06);
-    this.body.add(this.head);
+    this.head.position.set(0, 0.88, 0.05);
+    this.torsoGroup.add(this.head);
 
-    const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.58, 36, 30), fur);
-    cranium.scale.set(1.07, 0.96, 0.97);
+    // Neck
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.18, 16), furMain);
+    neck.position.y = -0.02;
+    this.head.add(neck);
+
+    // Cranium (sleeker clever hare shape)
+    const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.38, 30, 26), furMain);
+    cranium.scale.set(0.95, 1.05, 0.98);
+    cranium.position.y = 0.28;
     this.head.add(cranium);
 
-    // Cute forehead fur tuft!
-    for (const [tx, ty, rz, sc] of [
-      [-0.06, 0.55, 0.3, 0.11],
-      [0.03, 0.58, -0.1, 0.13],
-      [0.11, 0.53, -0.45, 0.09],
-    ]) {
-      const tuft = new THREE.Mesh(new THREE.ConeGeometry(sc * 0.7, sc * 2.2, 12), fur);
-      tuft.position.set(tx, ty, 0.18);
-      tuft.rotation.z = rz;
-      tuft.rotation.x = 0.25;
+    // Cheek fur tufts (classic cartoon hare!)
+    for (const side of [-1, 1]) {
+      const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.22, 10), furMain);
+      tuft.position.set(side * 0.34, 0.16, 0.1);
+      tuft.rotation.z = -side * 1.25;
       this.head.add(tuft);
     }
 
-    // Soft puffy cheeks + rosy blush
-    for (const x of [-0.27, 0.27]) {
-      const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.185, 20, 18), fur);
-      cheek.scale.set(1.08, 0.88, 0.82);
-      cheek.position.set(x, -0.14, 0.35);
-      this.head.add(cheek);
+    // Forehead playful hair tuft (just like the poster!)
+    for (const [tx, ty, rz, sc] of [
+      [-0.07, 0.66, 0.32, 0.11],
+      [0.02, 0.70, -0.08, 0.13],
+      [0.11, 0.65, -0.45, 0.10],
+    ]) {
+      const hair = new THREE.Mesh(new THREE.SphereGeometry(sc, 12, 10), furMain);
+      hair.scale.set(0.8, 1.45, 0.85);
+      hair.position.set(tx, ty, 0.12);
+      hair.rotation.z = rz;
+      this.head.add(hair);
+    }
 
-      const blush = new THREE.Mesh(new THREE.CircleGeometry(0.115, 22), this.blushMat);
-      blush.position.set(x * 1.15, -0.10, 0.535);
-      blush.rotation.y = x < 0 ? -0.34 : 0.34;
+    // Sculpted Warm Cream Hare Muzzle / Snout + Smiling Cheeks
+    const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.24, 24, 20), furCream);
+    muzzle.scale.set(1.08, 0.78, 1.18);
+    muzzle.position.set(0, 0.18, 0.30);
+    this.head.add(muzzle);
+
+    // Nose bridge (warm ginger slope like in the poster!)
+    const bridge = new THREE.Mesh(new THREE.SphereGeometry(0.14, 18, 16), furMain);
+    bridge.scale.set(0.88, 0.75, 1.35);
+    bridge.position.set(0, 0.27, 0.31);
+    this.head.add(bridge);
+
+    // Blush circles
+    for (const side of [-1, 1]) {
+      const blush = new THREE.Mesh(new THREE.CircleGeometry(0.085, 18), this.blushMat);
+      blush.position.set(side * 0.24, 0.17, 0.38);
+      blush.rotation.y = side * 0.45;
       this.head.add(blush);
     }
 
-    // Cute heart-shaped nose
-    this.nose = new THREE.Mesh(new THREE.SphereGeometry(0.072, 18, 16), noseMat);
-    this.nose.scale.set(1.26, 0.86, 0.84);
-    this.nose.position.set(0, -0.025, 0.575);
+    // Cute twitching dark cartoon hare nose
+    this.nose = new THREE.Mesh(new THREE.SphereGeometry(0.068, 16, 14), noseMat);
+    this.nose.scale.set(1.25, 0.82, 0.92);
+    this.nose.position.set(0, 0.26, 0.51);
     this.head.add(this.nose);
 
-    // Delicate whiskers
+    // Long classic cartoon whiskers!
+    const whiskerMat = new THREE.LineBasicMaterial({ color: 0x2c1608, transparent: true, opacity: 0.72 });
     for (const side of [-1, 1]) {
-      for (const dy of [-0.025, 0.02]) {
+      for (const dy of [-0.025, 0.015, 0.05]) {
         const geo = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(side * 0.09, dy - 0.02, 0.54),
-          new THREE.Vector3(side * 0.45, dy + side * 0.012, 0.42),
+          new THREE.Vector3(side * 0.14, 0.20 + dy, 0.44),
+          new THREE.Vector3(side * 0.56, 0.22 + dy * 1.4, 0.34),
         ]);
-        const line = new THREE.Line(
-          geo,
-          new THREE.LineBasicMaterial({ color: 0xdad4f2, transparent: true, opacity: 0.55 })
-        );
-        this.head.add(line);
+        this.head.add(new THREE.Line(geo, whiskerMat));
       }
     }
 
-    // ---- Real-Time Audio-Reactive Mouth ----
+    // ---- Expressive Lip-Sync Mouth + Classic Buck Teeth ----
     this.mouthGroup = new THREE.Group();
-    this.mouthGroup.position.set(0, -0.165, 0.535);
+    this.mouthGroup.position.set(0, 0.085, 0.435);
     this.head.add(this.mouthGroup);
 
-    this.mouthCavity = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 14), mouthCavityMat);
-    this.mouthCavity.scale.set(1.15, 0.25, 0.55);
+    this.mouthCavity = new THREE.Mesh(new THREE.SphereGeometry(0.115, 18, 14), mouthMat);
+    this.mouthCavity.scale.set(1.18, 0.28, 0.6);
     this.mouthGroup.add(this.mouthCavity);
 
-    this.tongue = new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 10), tongueMat);
-    this.tongue.scale.set(1.0, 0.45, 0.6);
-    this.tongue.position.set(0, -0.032, 0.024);
+    this.tongue = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 10), tongueMat);
+    this.tongue.scale.set(1.05, 0.45, 0.65);
+    this.tongue.position.set(0, -0.042, 0.03);
     this.mouthGroup.add(this.tongue);
 
-    // Cute tiny bunny front tooth
-    this.tooth = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.036, 0.024), toothMat);
-    this.tooth.position.set(0, 0.028, 0.042);
-    this.mouthGroup.add(this.tooth);
+    // Classic cute rabbit front buck teeth!
+    this.teeth = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.055, 0.03), whiteMat);
+    this.teeth.position.set(0, 0.032, 0.055);
+    this.mouthGroup.add(this.teeth);
 
-    // ---- Big Expressive Pixar Eyes + Eyebrows ----
+    // ---- Big Bright Sky-Blue Cartoon Eyes + Animated Eyelids & Eyebrows ----
     this.eyeGroups = [];
-    this.irisMats = [];
+    this.eyeBalls = [];
+    this.eyelids = [];
     this.brows = [];
     for (const side of [-1, 1]) {
       const eg = new THREE.Group();
-      eg.position.set(side * 0.22, 0.095, 0.478);
+      eg.position.set(side * 0.145, 0.39, 0.31);
 
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.112, 24, 20), eyeMat);
-      ball.scale.set(0.96, 1.15, 0.78);
+      // Big oval cartoon sclera
+      const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.112, 22, 18), whiteMat);
+      sclera.scale.set(0.84, 1.24, 0.72);
+      eg.add(sclera);
 
-      const irisMat = new THREE.MeshBasicMaterial({ color: 0x6d28d9 });
-      this.irisMats.push(irisMat);
-      const iris = new THREE.Mesh(new THREE.SphereGeometry(0.072, 16, 14), irisMat);
-      iris.scale.set(0.95, 1.08, 0.52);
-      iris.position.set(0, -0.008, 0.048);
+      // Moving iris + pupil group
+      const gaze = new THREE.Group();
+      const iris = new THREE.Mesh(new THREE.SphereGeometry(0.062, 16, 14), irisMat);
+      iris.scale.set(0.88, 1.15, 0.45);
+      iris.position.set(0, -0.005, 0.062);
+      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.036, 14, 12), pupilMat);
+      pupil.scale.set(0.88, 1.12, 0.45);
+      pupil.position.set(0, -0.004, 0.078);
+      const glint = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 10), glintMat);
+      glint.position.set(0.022, 0.032, 0.092);
+      gaze.add(iris, pupil, glint);
+      eg.add(gaze);
 
-      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.044, 14, 12), eyeMat);
-      pupil.scale.set(0.95, 1.05, 0.5);
-      pupil.position.set(0, -0.005, 0.068);
+      // Upper eyelid cap for blinks, sad/offended half-lids, happy squints
+      const lid = new THREE.Mesh(
+        new THREE.SphereGeometry(0.118, 18, 14, 0, Math.PI * 2, 0, Math.PI * 0.55),
+        furMain
+      );
+      lid.scale.set(0.87, 1.26, 0.76);
+      lid.rotation.x = -0.85; // open by default
+      eg.add(lid);
 
-      const glint1 = new THREE.Mesh(new THREE.SphereGeometry(0.034, 12, 10), glintMat);
-      glint1.position.set(0.032, 0.046, 0.088);
-
-      const glint2 = new THREE.Mesh(new THREE.SphereGeometry(0.015, 10, 8), glintMat);
-      glint2.position.set(-0.028, -0.032, 0.086);
-
-      eg.add(ball, iris, pupil, glint1, glint2);
       this.head.add(eg);
       this.eyeGroups.push(eg);
+      this.eyeBalls.push(gaze);
+      this.eyelids.push(lid);
 
-      // Soft friendly eyebrow
-      const brow = new THREE.Mesh(new THREE.CapsuleGeometry(0.017, 0.08, 6, 10), browMat);
-      brow.rotation.z = Math.PI / 2 - side * 0.05;
-      brow.position.set(side * 0.21, 0.285, 0.485);
+      // Expressive dark-cinnamon eyebrows (convey happy, curious, sad, offended!)
+      const brow = new THREE.Mesh(new THREE.CapsuleGeometry(0.022, 0.11, 6, 10), furDark);
+      brow.rotation.z = Math.PI / 2 - side * 0.08;
+      brow.position.set(side * 0.155, 0.555, 0.34);
       this.head.add(brow);
       this.brows.push(brow);
     }
 
-    // ---- Long Expressive Cartoon Ears ----
+    // ---- Iconic Long Swept-Back Cartoon Hare Ears! ----
     this.ears = [];
     for (const side of [-1, 1]) {
-      const pivot = new THREE.Group();
-      pivot.position.set(side * 0.24, 0.45, -0.02);
+      const earPivot = new THREE.Group();
+      earPivot.position.set(side * 0.16, 0.60, -0.02);
 
-      const outer = new THREE.Mesh(new THREE.SphereGeometry(0.165, 22, 20), fur);
-      outer.scale.set(0.84, 2.75, 0.54);
-      outer.position.y = 0.44;
+      const outer = new THREE.Mesh(new THREE.SphereGeometry(0.145, 20, 18), furMain);
+      outer.scale.set(0.75, 3.35, 0.42);
+      outer.position.y = 0.48;
 
-      const inner = new THREE.Mesh(new THREE.SphereGeometry(0.112, 18, 16), innerEar);
-      inner.scale.set(0.76, 2.28, 0.42);
-      inner.position.set(0, 0.43, 0.062);
+      const inner = new THREE.Mesh(new THREE.SphereGeometry(0.10, 16, 14), innerEar);
+      inner.scale.set(0.66, 2.78, 0.35);
+      inner.position.set(0, 0.46, 0.044);
 
-      pivot.add(outer, inner);
-      this.head.add(pivot);
-      this.ears.push(pivot);
+      earPivot.add(outer, inner);
+      this.head.add(earPivot);
+      this.ears.push(earPivot);
     }
   }
 
-  _buildSparkles() {
-    const N = 64;
+  _buildMagicFireflies() {
+    const N = 56;
     const pos = new Float32Array(N * 3);
-    this._sparkLife = new Float32Array(N);
+    this._flyLife = new Float32Array(N);
     for (let i = 0; i < N; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 5.2;
-      pos[i * 3 + 1] = Math.random() * 3.4 - 1.1;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 3.0;
-      this._sparkLife[i] = Math.random();
+      pos[i * 3] = (Math.random() - 0.5) * 7.5;
+      pos[i * 3 + 1] = 0.25 + Math.random() * 3.2;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 4.5;
+      this._flyLife[i] = Math.random();
     }
     const geo = new THREE.BufferGeometry();
-    this._sparkPos = pos;
+    this._flyPos = pos;
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.sparkMat = new THREE.PointsMaterial({
-      color: 0xd8b4fe,
-      size: 0.056,
-      transparent: true,
-      opacity: 0.58,
-      blending: THREE.AdditiveBlending,
-    });
-    this.sparkles = new THREE.Points(geo, this.sparkMat);
-    this.scene.add(this.sparkles);
+    this.fireflies = new THREE.Points(
+      geo,
+      new THREE.PointsMaterial({
+        color: 0x7dd3fc,
+        size: 0.085,
+        transparent: true,
+        opacity: 0.72,
+        blending: THREE.AdditiveBlending,
+      })
+    );
+    this.scene.add(this.fireflies);
   }
 
-  _buildThinkOrbits() {
-    const N = 18;
+  _buildEmotionProps() {
+    // Golden thinking orbit stars + emerald knowledge absorption stars
+    const N = 16;
     const pos = new Float32Array(N * 3);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this._orbitPos = geo.attributes.position;
-    this.thinkOrbitMat = new THREE.PointsMaterial({
+    this.thinkMat = new THREE.PointsMaterial({
       color: 0xfbbf24,
-      size: 0.085,
+      size: 0.11,
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
     });
-    this.thinkOrbit = new THREE.Points(geo, this.thinkOrbitMat);
-    this.thinkOrbit.position.set(0, 0.85, 0);
-    this.root.add(this.thinkOrbit);
-  }
+    this.thinkOrbit = new THREE.Points(geo, this.thinkMat);
+    this.thinkOrbit.position.set(0, 2.05, 0);
+    this.charRoot.add(this.thinkOrbit);
 
-  _buildLearnBurst() {
     this._learnStars = [];
-    const starMat = new THREE.MeshBasicMaterial({
-      color: 0x34d399,
-      transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending,
-    });
+    const sMat = new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0, blending: THREE.AdditiveBlending });
     for (let i = 0; i < 12; i++) {
-      const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.075, 0), starMat.clone());
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), sMat.clone());
       m.visible = false;
-      this.root.add(m);
-      this._learnStars.push({
-        mesh: m,
-        angle: (i / 12) * Math.PI * 2,
-        life: 0,
-        radius: 1.6,
-        yOffset: (Math.random() - 0.5) * 1.2,
-      });
+      this.charRoot.add(m);
+      this._learnStars.push({ mesh: m, angle: (i / 12) * Math.PI * 2, life: 0, r: 1.8 });
     }
   }
 
@@ -396,241 +552,344 @@ export class Bunny3D {
     this.targetLookY = Math.max(-1, Math.min(1, ny));
   }
 
+  setCameraPerson(nx, ny) {
+    // nx, ny in [-1..1] from real webcam face detection (null if no face seen)
+    this.camUserX = nx;
+    this.camUserY = ny;
+    if (nx !== null) {
+      this.targetLookX = Math.max(-1, Math.min(1, nx));
+      this.targetLookY = Math.max(-1, Math.min(1, ny));
+    }
+  }
+
   setState(state) {
     this.aiState = state || 'idle';
     if (state === 'listening') {
-      this._targetAuraColor.setHex(0x38bdf8); // Bright Gemini Cyan
+      this._targetRingColor.setHex(0x38bdf8);
+      // Step slightly closer & face user eagerly!
+      this.targetZ = 0.35;
+      this.targetX = this.camUserX !== null ? this.camUserX * 0.55 : 0;
     } else if (state === 'thinking') {
-      this._targetAuraColor.setHex(0xf59e0b); // Warm Golden Neural Glow
+      this._targetRingColor.setHex(0xfbbf24);
+      // Wise bunny paces slightly to the side while thinking!
+      this.targetX = this.posX >= 0 ? -0.75 : 0.75;
+      this.targetZ = -0.15;
     } else if (state === 'speaking') {
-      this._targetAuraColor.setHex(0xec4899); // Lively Rose-Violet
+      this._targetRingColor.setHex(0xf472b6);
+      this.targetZ = 0.2;
     } else {
-      this._targetAuraColor.setHex(0x8b5cf6); // Dreamy Cosmic Violet
+      this._targetRingColor.setHex(0x4ade80);
     }
   }
 
   setMood(mood) {
     this.mood = mood || 'happy';
-    if (mood === 'excited' || mood === 'laughing') {
+    if (mood === 'excited' || mood === 'surprised') {
       this.hopTime = 0.65;
-      this.blushBoost = 0.65;
+      this.blushBoost = 0.5;
+    } else if (mood === 'laughing') {
+      this.hopTime = 0.5;
+      this.blushBoost = 0.75;
     } else if (mood === 'shy') {
       this.blushBoost = 1.0;
-    } else if (mood === 'wise') {
-      this.blushBoost = 0.25;
+    } else if (mood === 'offended' || mood === 'sad') {
+      // Steps slightly further back and sulks!
+      this.targetZ = -0.35;
+      this.targetX = this.posX >= 0 ? 0.55 : -0.55;
     }
   }
 
-  setVoiceLevel(lvl) {
-    this.voiceLevel = Math.max(0, Math.min(1, lvl || 0));
-  }
-
-  setMicLevel(lvl) {
-    this.micLevel = Math.max(0, Math.min(1, lvl || 0));
-  }
-
-  triggerHop() {
-    this.hopTime = 0.6;
-    this.blushBoost = 0.7;
-  }
-
-  triggerWiggle() {
-    this.wiggleTime = 0.55;
-    this.blushBoost = 0.5;
-  }
-
+  setVoiceLevel(lvl) { this.voiceLevel = Math.max(0, Math.min(1, lvl || 0)); }
+  setMicLevel(lvl) { this.micLevel = Math.max(0, Math.min(1, lvl || 0)); }
+  triggerHop() { this.hopTime = 0.65; }
+  triggerWave() { this.waveTime = 2.0; }
   triggerLearnBurst() {
     this.learnBurstTime = 1.6;
-    this.hopTime = 0.75;
-    this.blushBoost = 0.85;
+    this.hopTime = 0.7;
     for (let i = 0; i < this._learnStars.length; i++) {
       const s = this._learnStars[i];
       s.life = 1.4;
-      s.radius = 1.7 + Math.random() * 0.4;
-      s.angle = (i / this._learnStars.length) * Math.PI * 2;
+      s.r = 1.85;
       s.mesh.visible = true;
     }
   }
 
-  // ---- Main 60 FPS Render Loop ----
   update(dt, t) {
     this._resizeIfNeeded();
 
-    // Smooth reactive audio levels
     this.smoothVoice += (this.voiceLevel - this.smoothVoice) * Math.min(1, dt * 26);
     this.smoothMic += (this.micLevel - this.smoothMic) * Math.min(1, dt * 18);
-
-    // Smooth aura color transition
-    this._curAuraColor.lerp(this._targetAuraColor, Math.min(1, dt * 5));
-    this.haloMat1.color.copy(this._curAuraColor);
-    this.pedestalMat.color.copy(this._curAuraColor);
-    this.auraLight.color.copy(this._curAuraColor);
-    this.gemMat.color.copy(this._curAuraColor);
-    this.gemMat.emissive.copy(this._curAuraColor);
+    this._curRingColor.lerp(this._targetRingColor, Math.min(1, dt * 5));
+    this.groundRingMat.color.copy(this._curRingColor);
+    this.magicLight.color.copy(this._curRingColor);
+    this.gemMat.color.copy(this._curRingColor);
+    this.gemMat.emissive.copy(this._curRingColor);
 
     const isListening = this.aiState === 'listening';
-    const isThinking = this.aiState === 'thinking';
-    const isSpeaking = this.aiState === 'speaking';
+    const isThinking  = this.aiState === 'thinking';
+    const isSpeaking  = this.aiState === 'speaking';
+    const isSad       = this.mood === 'sad';
+    const isOffended  = this.mood === 'offended';
+    const isExcited   = this.mood === 'excited';
+    const isLaughing  = this.mood === 'laughing';
+    const isWise      = this.mood === 'wise';
 
-    const reactiveEnergy = isSpeaking ? this.smoothVoice : (isListening ? this.smoothMic : 0);
+    // ---- Autonomous Lively Roaming (NEVER frozen in one spot!) ----
+    this.roamTimer -= dt;
+    if (this.roamTimer <= 0) {
+      if (isSpeaking && !isSad && !isOffended) {
+        // Gentle expressive storyteller pacing while talking!
+        this.targetX = (Math.random() - 0.5) * 1.35;
+        this.targetZ = (Math.random() - 0.5) * 0.45 + 0.15;
+        this.roamTimer = 2.6 + Math.random() * 2.2;
+      } else if (this.aiState === 'idle' && !isOffended) {
+        // Playful roaming around the sunny glade (or following webcam person!)
+        if (this.camUserX !== null && Math.random() < 0.65) {
+          this.targetX = this.camUserX * 0.95;
+          this.targetZ = (Math.random() - 0.5) * 0.4;
+        } else {
+          this.targetX = (Math.random() - 0.5) * 2.1;
+          this.targetZ = (Math.random() - 0.5) * 0.7;
+        }
+        this.roamTimer = 3.2 + Math.random() * 2.8;
+      } else if (isThinking) {
+        this.targetX = -this.targetX || 0.75;
+        this.roamTimer = 2.2;
+      } else {
+        this.roamTimer = 2.5;
+      }
+    }
 
-    // ---- Aura Rings (Gemini Live pulse!) ----
-    const ringScale1 = 1.0 + reactiveEnergy * 0.24 + Math.sin(t * 2.4) * 0.025;
-    const ringScale2 = 1.0 + reactiveEnergy * 0.36 + Math.cos(t * 1.9) * 0.03;
-    this.haloRing1.scale.setScalar(ringScale1);
-    this.haloRing2.scale.setScalar(ringScale2);
-    this.haloRing1.rotation.z = t * (isThinking ? 1.1 : 0.25);
-    this.haloRing2.rotation.z = -t * (isThinking ? 0.8 : 0.18);
-    this.haloRing1.rotation.x = Math.sin(t * 0.9) * 0.16;
-    this.haloRing2.rotation.y = Math.cos(t * 0.7) * 0.22;
-    this.haloMat1.opacity = 0.28 + reactiveEnergy * 0.55 + (isThinking ? 0.22 : 0);
-    this.haloMat2.opacity = 0.15 + reactiveEnergy * 0.42;
-    this.auraLight.intensity = 0.85 + reactiveEnergy * 1.45;
-    this.chestGem.rotation.y = t * (isThinking ? 3.2 : 1.0);
-    this.gemMat.emissiveIntensity = 0.75 + reactiveEnergy * 1.6 + (this.learnBurstTime > 0 ? 1.5 : 0);
+    // Move smoothly toward target spot with real walking/hopping stride!
+    const dx = this.targetX - this.posX;
+    const dz = this.targetZ - this.posZ;
+    const dist = Math.hypot(dx, dz);
+    const speed = isOffended || isSad ? 0.65 : (isExcited ? 1.7 : 1.15);
+    let moving = 0;
 
-    // ---- Smooth Eye/Head Look ----
-    const autoLookX = isSpeaking ? Math.sin(t * 1.7) * 0.15 : 0;
-    const autoLookY = isThinking ? -0.35 : 0;
-    this.lookX += ((this.targetLookX + autoLookX) - this.lookX) * Math.min(1, dt * 7);
-    this.lookY += ((this.targetLookY + autoLookY) - this.lookY) * Math.min(1, dt * 7);
+    if (dist > 0.06) {
+      const step = Math.min(dist, speed * dt);
+      this.posX += (dx / dist) * step;
+      this.posZ += (dz / dist) * step;
+      moving = Math.min(1, dist * 2.2);
+      this.walkPhase += dt * (isExcited ? 12 : 9.2);
+      // Turn slightly toward walking direction, still keeping visible to viewer
+      const walkYaw = Math.atan2(dx, Math.max(0.45, dz + 1.1));
+      this.targetYaw = Math.max(-0.65, Math.min(0.65, walkYaw));
+    } else {
+      // Turn to face the user (or sulk sideways if offended!)
+      if (isOffended) {
+        this.targetYaw = this.posX >= 0 ? 0.68 : -0.68;
+      } else {
+        this.targetYaw = (this.camUserX !== null ? this.camUserX * 0.35 : this.targetLookX * 0.22) - this.posX * 0.14;
+      }
+    }
 
-    // ---- Hop / Body Breathing / Lean-in ----
+    this.facingYaw += (this.targetYaw - this.facingYaw) * Math.min(1, dt * 6);
+    this.charRoot.position.x = this.posX;
+    this.charRoot.position.z = this.posZ;
+    this.charRoot.rotation.y = this.facingYaw;
+    this.shadowBlob.position.x = this.posX;
+    this.shadowBlob.position.z = this.posZ;
+
+    // ---- Hop / Stride Bounce ----
     let hopY = 0;
     if (this.hopTime > 0) {
       this.hopTime = Math.max(0, this.hopTime - dt);
-      hopY = Math.abs(Math.sin(this.hopTime * Math.PI * 3.5)) * 0.26;
+      hopY = Math.abs(Math.sin(this.hopTime * Math.PI * 3)) * 0.42;
     }
-    const leanZ = isListening ? 0.16 : 0;
-    const speakBob = isSpeaking ? this.smoothVoice * 0.065 : 0;
-    this.body.position.y = Math.sin(t * 2.2) * 0.028 + hopY + speakBob;
-    this.body.position.z += (leanZ - this.body.position.z) * Math.min(1, dt * 5);
+    const strideBounce = moving * Math.abs(Math.sin(this.walkPhase)) * 0.14;
+    const laughBounce = isLaughing ? Math.abs(Math.sin(t * 14)) * 0.08 : 0;
+    const breath = Math.sin(t * 2.4) * 0.022;
+    this.body.position.y = hopY + strideBounce + laughBounce + breath;
+    this.shadowBlob.scale.setScalar(Math.max(0.55, 1.0 - (hopY + strideBounce) * 0.7));
 
-    if (this.wiggleTime > 0) {
-      this.wiggleTime = Math.max(0, this.wiggleTime - dt);
-      this.body.rotation.y = Math.sin(t * 20) * 0.18 * (this.wiggleTime / 0.55);
+    // ---- Legs & Impatient Foot Tap when Offended ----
+    const legSwing = moving * Math.sin(this.walkPhase) * 0.58;
+    this.legs[0].pivot.rotation.x = legSwing;
+    this.legs[1].pivot.rotation.x = -legSwing;
+    if (isOffended && moving < 0.1) {
+      this.footTapPhase += dt * 11;
+      this.legs[1].foot.rotation.x = -Math.abs(Math.sin(this.footTapPhase)) * 0.32;
     } else {
-      this.body.rotation.y += (Math.sin(t * 0.6) * 0.04 - this.body.rotation.y) * Math.min(1, dt * 4);
+      this.legs[0].foot.rotation.x = -legSwing * 0.35;
+      this.legs[1].foot.rotation.x = legSwing * 0.35;
     }
 
-    // ---- Head Expression ----
-    const tiltTarget = isListening
-      ? 0.14
-      : (isThinking ? -0.18 : (this.mood === 'curious' ? 0.2 : 0));
-    this.head.rotation.y = this.lookX * 0.32 + Math.sin(t * 0.85) * 0.035;
-    this.head.rotation.x = -this.lookY * 0.2 + (this.mood === 'shy' ? 0.14 : 0) - (isSpeaking ? this.smoothVoice * 0.08 : 0);
-    this.head.rotation.z += ((tiltTarget + Math.sin(t * 1.4) * 0.025) - this.head.rotation.z) * Math.min(1, dt * 6);
+    // ---- Torso Lean & Storytelling Posture ----
+    const torsoForward = isSad ? 0.14 : (isListening ? 0.1 : (moving * 0.12));
+    this.torsoGroup.rotation.x += (torsoForward - this.torsoGroup.rotation.x) * Math.min(1, dt * 6);
+    this.torsoGroup.rotation.z = moving * Math.cos(this.walkPhase) * 0.07 + (isSpeaking ? Math.sin(t * 3.2) * 0.04 : 0);
 
-    // ---- Expressive Ears ----
-    const earPerk = isListening ? -0.06 : (this.mood === 'shy' ? 0.34 : (isThinking ? 0.16 : 0.08));
-    const earBounce = isSpeaking ? this.smoothVoice * 0.24 : (isListening ? this.smoothMic * 0.16 : 0);
-    this.ears[0].rotation.z = 0.12 + earPerk - earBounce + Math.sin(t * 2.4) * 0.055;
-    this.ears[1].rotation.z = -0.12 - earPerk + earBounce + Math.cos(t * 2.2) * 0.055;
-    this.ears[0].rotation.x = isListening ? 0.14 : (this.mood === 'excited' ? -0.14 : 0.02);
-    this.ears[1].rotation.x = this.ears[0].rotation.x;
+    // Bandana fluttering in breeze/motion
+    this.bandanaTail1.rotation.z = 0.75 + Math.sin(t * 5 + moving * 3) * 0.12;
+    this.bandanaTail2.rotation.z = 1.1 + Math.cos(t * 4.5) * 0.12;
+    this.tail.rotation.y = Math.sin(t * (isExcited || isSpeaking ? 11 : 4)) * 0.25;
 
-    // ---- Eyebrows ----
-    const browLift = isListening || this.mood === 'curious' || this.mood === 'excited'
-      ? 0.035
-      : (isSpeaking ? this.smoothVoice * 0.025 : 0);
-    this.brows[0].position.y = 0.275 + browLift;
-    this.brows[1].position.y = 0.275 + browLift;
+    // ---- Smooth Eye & Head Tracking ----
+    const wantLookX = isOffended ? (this.facingYaw > 0 ? -0.65 : 0.65) : this.targetLookX;
+    const wantLookY = isThinking ? -0.35 : (isSad ? 0.32 : this.targetLookY);
+    this.lookX += (wantLookX - this.lookX) * Math.min(1, dt * 7);
+    this.lookY += (wantLookY - this.lookY) * Math.min(1, dt * 7);
 
-    // ---- Blinking ----
+    const headTilt = isListening ? 0.15 : (this.mood === 'curious' ? 0.22 : (isSad ? -0.14 : (isWise ? Math.sin(t * 1.5) * 0.08 : 0)));
+    this.head.rotation.y = this.lookX * 0.38;
+    this.head.rotation.x = -this.lookY * 0.22 + (isSad ? 0.2 : 0) - (isSpeaking ? this.smoothVoice * 0.07 : 0);
+    this.head.rotation.z += ((headTilt + Math.sin(t * 1.3) * 0.025) - this.head.rotation.z) * Math.min(1, dt * 6);
+
+    for (const gaze of this.eyeBalls) {
+      gaze.position.x = this.lookX * 0.032;
+      gaze.position.y = -this.lookY * 0.026;
+    }
+
+    // ---- Iconic Long Expressive Hare Ears ----
+    // Swept back playfully like the poster, perked when listening, DROOPED when sad/offended!
+    const earBack = isSad ? -0.55 : (isOffended ? -0.75 : (isListening ? 0.18 : -0.24 - moving * 0.22));
+    const earSplay = isSad ? 0.68 : (isOffended ? 0.55 : (isListening ? 0.10 : 0.26));
+    const earVoiceBounce = isSpeaking ? this.smoothVoice * 0.22 : (isListening ? this.smoothMic * 0.14 : 0);
+
+    this.ears[0].rotation.z += ((earSplay - earVoiceBounce + Math.sin(t * 2.5) * 0.05) - this.ears[0].rotation.z) * Math.min(1, dt * 8);
+    this.ears[1].rotation.z += ((-earSplay + earVoiceBounce + Math.cos(t * 2.3) * 0.05) - this.ears[1].rotation.z) * Math.min(1, dt * 8);
+    this.ears[0].rotation.x += (earBack - this.ears[0].rotation.x) * Math.min(1, dt * 7);
+    this.ears[1].rotation.x += (earBack - this.ears[1].rotation.x) * Math.min(1, dt * 7);
+
+    // ---- Eyebrows & Eyelids (Real Marusya Expressions!) ----
     this.blinkTimer -= dt;
     if (this.blinkTimer <= 0) {
       this.blinking = 0.13;
-      this.blinkTimer = 2.0 + Math.random() * 3.4;
+      this.blinkTimer = 2.0 + Math.random() * 3.2;
     }
-    const eyeScaleY = this.blinking > 0 ? 0.08 : (this.mood === 'laughing' ? 0.72 : 1.0);
     if (this.blinking > 0) this.blinking = Math.max(0, this.blinking - dt);
-    for (const eg of this.eyeGroups) {
-      eg.scale.y += (eyeScaleY - eg.scale.y) * Math.min(1, dt * 28);
+
+    const lidClosed = this.blinking > 0 ? 0.15 : (isLaughing ? -0.25 : (isOffended ? -0.42 : (isSad ? -0.48 : -0.88)));
+    for (let i = 0; i < 2; i++) {
+      const side = i === 0 ? -1 : 1;
+      this.eyelids[i].rotation.x += (lidClosed - this.eyelids[i].rotation.x) * Math.min(1, dt * 24);
+      // Brow angle conveys emotion instantly!
+      let browAngle = -side * 0.06;
+      let browY = 0.555;
+      if (isOffended) { browAngle = side * 0.28; browY = 0.535; } // furrowed angry/pouting!
+      else if (isSad) { browAngle = -side * 0.28; browY = 0.545; } // sad puppy brows!
+      else if (isExcited || this.mood === 'surprised' || isListening) { browAngle = -side * 0.12; browY = 0.585; }
+      this.brows[i].rotation.z += ((Math.PI / 2 + browAngle) - this.brows[i].rotation.z) * Math.min(1, dt * 10);
+      this.brows[i].position.y += (browY - this.brows[i].position.y) * Math.min(1, dt * 10);
     }
 
     // ---- Real-Time Audio Lip-Sync Mouth ----
     const mouthOpen = isSpeaking
-      ? Math.max(0.26, Math.min(1.38, 0.24 + this.smoothVoice * 1.45 + Math.abs(Math.sin(t * 17)) * this.smoothVoice * 0.35))
-      : 0.20;
-    const mouthWide = isSpeaking ? 1.05 + this.smoothVoice * 0.3 : (this.mood === 'happy' || this.mood === 'laughing' ? 1.25 : 1.0);
+      ? Math.max(0.28, Math.min(1.45, 0.26 + this.smoothVoice * 1.5 + Math.abs(Math.sin(t * 17)) * this.smoothVoice * 0.35))
+      : (isLaughing ? 1.05 : (this.mood === 'surprised' ? 0.85 : (isSad || isOffended ? 0.16 : 0.24)));
+    const mouthWide = isSad || isOffended ? 0.82 : (isSpeaking ? 1.05 + this.smoothVoice * 0.25 : 1.18);
     this.mouthCavity.scale.y += (mouthOpen - this.mouthCavity.scale.y) * Math.min(1, dt * 30);
-    this.mouthCavity.scale.x += (mouthWide - this.mouthCavity.scale.x) * Math.min(1, dt * 16);
+    this.mouthCavity.scale.x += (mouthWide - this.mouthCavity.scale.x) * Math.min(1, dt * 15);
     this.tongue.visible = this.mouthCavity.scale.y > 0.45;
-    this.tooth.position.y = 0.022 + this.mouthCavity.scale.y * 0.015;
+    this.teeth.visible = !isSad && !isOffended;
 
-    // ---- Nose & Tail ----
-    this.nose.position.y = -0.025 + Math.sin(t * 11) * 0.004;
-    this.tail.rotation.z = Math.sin(t * (isSpeaking || isListening ? 10 : 4)) * 0.16;
+    // Nose twitch
+    this.nose.position.y = 0.26 + Math.sin(t * 11) * 0.005;
 
-    // ---- Arms / Paws ----
-    if (isThinking) {
-      // Cute paw up near chin while thinking!
-      this.rightArm.rotation.z += (-0.95 - this.rightArm.rotation.z) * Math.min(1, dt * 7);
-      this.rightArm.rotation.x += (-0.45 - this.rightArm.rotation.x) * Math.min(1, dt * 7);
-      this.leftArm.rotation.z += (0.08 - this.leftArm.rotation.z) * Math.min(1, dt * 7);
-      this.leftArm.rotation.x += (0 - this.leftArm.rotation.x) * Math.min(1, dt * 7);
+    // ---- Expressive Articulated Arms ----
+    const L = this.arms[0], R = this.arms[1];
+    if (this.waveTime > 0) {
+      this.waveTime = Math.max(0, this.waveTime - dt);
+      R.shoulder.rotation.z = 2.35 + Math.sin(t * 12) * 0.32;
+      R.shoulder.rotation.x = -0.35;
+      R.elbow.rotation.z = 0.25;
+      L.shoulder.rotation.z = -0.25;
+      L.shoulder.rotation.x = 0;
+    } else if (isOffended) {
+      // Arms crossed across chest (classic offended sulk!)
+      L.shoulder.rotation.z += (-0.42 - L.shoulder.rotation.z) * Math.min(1, dt * 8);
+      L.shoulder.rotation.x += (-0.85 - L.shoulder.rotation.x) * Math.min(1, dt * 8);
+      L.elbow.rotation.z += (0.85 - L.elbow.rotation.z) * Math.min(1, dt * 8);
+      R.shoulder.rotation.z += (0.42 - R.shoulder.rotation.z) * Math.min(1, dt * 8);
+      R.shoulder.rotation.x += (-0.85 - R.shoulder.rotation.x) * Math.min(1, dt * 8);
+      R.elbow.rotation.z += (-0.85 - R.elbow.rotation.z) * Math.min(1, dt * 8);
+    } else if (isThinking) {
+      // Right paw stroking chin thoughtfully!
+      R.shoulder.rotation.z += (-0.45 - R.shoulder.rotation.z) * Math.min(1, dt * 7);
+      R.shoulder.rotation.x += (-1.15 - R.shoulder.rotation.x) * Math.min(1, dt * 7);
+      R.elbow.rotation.z += (-0.55 - R.elbow.rotation.z) * Math.min(1, dt * 7);
+      L.shoulder.rotation.z += (0.28 - L.shoulder.rotation.z) * Math.min(1, dt * 7);
+      L.shoulder.rotation.x += (-0.15 - L.shoulder.rotation.x) * Math.min(1, dt * 7);
+      L.elbow.rotation.z += (0.2 - L.elbow.rotation.z) * Math.min(1, dt * 7);
+    } else if (isExcited) {
+      // Classic poster victory fist pump!
+      R.shoulder.rotation.z += ((2.45 + Math.sin(t * 10) * 0.2) - R.shoulder.rotation.z) * Math.min(1, dt * 10);
+      R.shoulder.rotation.x += (-0.35 - R.shoulder.rotation.x) * Math.min(1, dt * 10);
+      R.elbow.rotation.z += (0.22 - R.elbow.rotation.z) * Math.min(1, dt * 10);
+      L.shoulder.rotation.z += (-0.55 - L.shoulder.rotation.z) * Math.min(1, dt * 8);
+      L.shoulder.rotation.x += (-0.65 - L.shoulder.rotation.x) * Math.min(1, dt * 8);
+      L.elbow.rotation.z += (-0.35 - L.elbow.rotation.z) * Math.min(1, dt * 8);
     } else if (isSpeaking) {
-      const g = Math.sin(t * 6.5) * (0.12 + this.smoothVoice * 0.35);
-      this.leftArm.rotation.z += (g - this.leftArm.rotation.z) * Math.min(1, dt * 12);
-      this.rightArm.rotation.z += (-g - this.rightArm.rotation.z) * Math.min(1, dt * 12);
-      this.leftArm.rotation.x += (-0.12 - this.leftArm.rotation.x) * Math.min(1, dt * 8);
-      this.rightArm.rotation.x += (-0.12 - this.rightArm.rotation.x) * Math.min(1, dt * 8);
+      // Expressive wise storyteller hand gestures synced with speech energy!
+      const g1 = Math.sin(t * 5.2) * (0.25 + this.smoothVoice * 0.45);
+      const g2 = Math.cos(t * 4.4) * (0.22 + this.smoothVoice * 0.38);
+      L.shoulder.rotation.z += ((0.45 + g1) - L.shoulder.rotation.z) * Math.min(1, dt * 10);
+      L.shoulder.rotation.x += ((-0.55 - this.smoothVoice * 0.35) - L.shoulder.rotation.x) * Math.min(1, dt * 10);
+      L.elbow.rotation.z += (0.3 - L.elbow.rotation.z) * Math.min(1, dt * 10);
+      R.shoulder.rotation.z += ((-0.45 - g2) - R.shoulder.rotation.z) * Math.min(1, dt * 10);
+      R.shoulder.rotation.x += ((-0.55 - this.smoothVoice * 0.35) - R.shoulder.rotation.x) * Math.min(1, dt * 10);
+      R.elbow.rotation.z += (-0.3 - R.elbow.rotation.z) * Math.min(1, dt * 10);
     } else {
-      this.leftArm.rotation.z += (0.05 - this.leftArm.rotation.z) * Math.min(1, dt * 6);
-      this.rightArm.rotation.z += (-0.05 - this.rightArm.rotation.z) * Math.min(1, dt * 6);
-      this.leftArm.rotation.x += (0 - this.leftArm.rotation.x) * Math.min(1, dt * 6);
-      this.rightArm.rotation.x += (0 - this.rightArm.rotation.x) * Math.min(1, dt * 6);
+      // Natural arm swing when walking / relaxed posture when standing
+      const swing = moving * Math.sin(this.walkPhase) * 0.55;
+      L.shoulder.rotation.z += ((isSad ? 0.12 : 0.26) - L.shoulder.rotation.z) * Math.min(1, dt * 7);
+      L.shoulder.rotation.x += (-swing - L.shoulder.rotation.x) * Math.min(1, dt * 9);
+      L.elbow.rotation.z += (0.12 - L.elbow.rotation.z) * Math.min(1, dt * 7);
+      R.shoulder.rotation.z += ((isSad ? -0.12 : -0.26) - R.shoulder.rotation.z) * Math.min(1, dt * 7);
+      R.shoulder.rotation.x += (swing - R.shoulder.rotation.x) * Math.min(1, dt * 9);
+      R.elbow.rotation.z += (-0.12 - R.elbow.rotation.z) * Math.min(1, dt * 7);
     }
 
-    // ---- Blush ----
+    // ---- Blush, Ground Ring Pulse, Fireflies & Knowledge Stars ----
     if (this.blushBoost > 0) this.blushBoost = Math.max(0, this.blushBoost - dt * 0.25);
-    this.blushMat.opacity = 0.3 + this.blushBoost * 0.45 + (isSpeaking ? this.smoothVoice * 0.2 : 0);
+    this.blushMat.opacity = 0.22 + this.blushBoost * 0.48;
 
-    // ---- Thinking Neural Orbit ----
-    const targetOrbitOp = isThinking ? 0.9 : 0;
-    this.thinkOrbitMat.opacity += (targetOrbitOp - this.thinkOrbitMat.opacity) * Math.min(1, dt * 6);
-    if (this.thinkOrbitMat.opacity > 0.01) {
-      for (let i = 0; i < 18; i++) {
-        const a = (i / 18) * Math.PI * 2 + t * 2.8;
-        this._orbitPos.array[i * 3] = Math.cos(a) * 0.92;
-        this._orbitPos.array[i * 3 + 1] = Math.sin(a * 2 + t) * 0.22;
-        this._orbitPos.array[i * 3 + 2] = Math.sin(a) * 0.72;
+    const energy = isSpeaking ? this.smoothVoice : (isListening ? this.smoothMic : 0);
+    this.groundRing.scale.setScalar(1.0 + energy * 0.2 + Math.sin(t * 2) * 0.03);
+    this.groundRingMat.opacity = 0.22 + energy * 0.55;
+    this.chestGem.rotation.y = t * 2.0;
+
+    // Thinking stars orbit
+    const targetThinkOp = isThinking ? 0.92 : 0;
+    this.thinkMat.opacity += (targetThinkOp - this.thinkMat.opacity) * Math.min(1, dt * 6);
+    if (this.thinkMat.opacity > 0.01) {
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 + t * 2.8;
+        this._orbitPos.array[i * 3] = Math.cos(a) * 0.85;
+        this._orbitPos.array[i * 3 + 1] = Math.sin(a * 2 + t) * 0.2;
+        this._orbitPos.array[i * 3 + 2] = Math.sin(a) * 0.65;
       }
       this._orbitPos.needsUpdate = true;
     }
 
-    // ---- Learning Knowledge Absorption Burst ----
-    if (this.learnBurstTime > 0) {
-      this.learnBurstTime = Math.max(0, this.learnBurstTime - dt);
-    }
+    // Learn celebration stars
+    if (this.learnBurstTime > 0) this.learnBurstTime = Math.max(0, this.learnBurstTime - dt);
     for (const s of this._learnStars) {
       if (s.life <= 0) continue;
       s.life -= dt;
-      if (s.life <= 0) {
-        s.mesh.visible = false;
-        continue;
-      }
+      if (s.life <= 0) { s.mesh.visible = false; continue; }
       const prog = 1 - s.life / 1.4;
-      const r = s.radius * (1 - prog * 0.85);
+      const r = s.r * (1 - prog * 0.85);
       const a = s.angle + prog * Math.PI * 3;
-      s.mesh.position.set(Math.cos(a) * r, 0.25 + s.yOffset * (1 - prog), Math.sin(a) * r * 0.65);
-      s.mesh.rotation.y += dt * 5;
+      s.mesh.position.set(Math.cos(a) * r, 1.2 + Math.sin(prog * Math.PI) * 0.6, Math.sin(a) * r * 0.7);
       s.mesh.material.opacity = Math.sin(prog * Math.PI) * 0.95;
-      s.mesh.scale.setScalar(0.6 + Math.sin(prog * Math.PI) * 0.7);
     }
 
-    // ---- Ambient Cosmic Sparkles ----
-    this.sparkles.rotation.y = t * 0.05;
-    for (let i = 0; i < this._sparkLife.length; i++) {
-      this._sparkLife[i] -= dt * 0.14;
-      if (this._sparkLife[i] < 0) {
-        this._sparkLife[i] = 0.8 + Math.random() * 0.6;
-        this._sparkPos[i * 3] = (Math.random() - 0.5) * 5.2;
-        this._sparkPos[i * 3 + 1] = Math.random() * 3.4 - 1.1;
-        this._sparkPos[i * 3 + 2] = (Math.random() - 0.5) * 2.8;
+    // Magical forest fireflies
+    this.fireflies.rotation.y = t * 0.04;
+    for (let i = 0; i < this._flyLife.length; i++) {
+      this._flyLife[i] -= dt * 0.12;
+      this._flyPos[i * 3 + 1] += Math.sin(t * 2 + i) * dt * 0.18;
+      if (this._flyLife[i] < 0) {
+        this._flyLife[i] = 0.8 + Math.random() * 0.6;
+        this._flyPos[i * 3] = (Math.random() - 0.5) * 7.5;
+        this._flyPos[i * 3 + 1] = 0.25 + Math.random() * 3.0;
+        this._flyPos[i * 3 + 2] = (Math.random() - 0.5) * 4.0;
       }
     }
-    this.sparkles.geometry.attributes.position.needsUpdate = true;
+    this.fireflies.geometry.attributes.position.needsUpdate = true;
 
     this.renderer.render(this.scene, this.camera);
   }
@@ -643,10 +902,11 @@ export class Bunny3D {
     this._h = h;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    // Automatically frame the bunny generously on both narrow mobile screens and wide desktops
     const aspect = w / h;
-    this.camera.position.z = aspect < 0.75 ? 6.8 : (aspect < 1.0 ? 6.2 : 5.85);
-    this.camera.position.y = aspect < 0.75 ? 0.22 : 0.35;
+    // Frame the full-body roaming bunny cleanly a bit further back!
+    this.camera.position.z = aspect < 0.75 ? 9.4 : (aspect < 1.0 ? 8.4 : 7.5);
+    this.camera.position.y = aspect < 0.75 ? 1.1 : 1.25;
+    this.camera.lookAt(0, 0.82, 0);
     this.camera.updateProjectionMatrix();
   }
 }

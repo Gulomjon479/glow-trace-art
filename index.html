@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Glow Trace Art — Yorqin Kontur Animatsiyasi</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
   <div class="app-shell">
@@ -95,21 +95,77 @@
           <span id="planBannerText">🎁 1-rasmingiz va animatsiyangiz BEPUL</span>
           <button class="plan-topup-btn" id="openPaywallBtn" type="button">💎 Tarif</button>
         </div>
-        <h3 class="section-title">Rasmlar</h3>
-        <div class="upload-row">
-          <label class="primary-btn upload-label" for="imageUpload">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            <span>Rasm yuklash</span>
-          </label>
-          <input type="file" id="imageUpload" accept="image/*" multiple hidden />
-          <button class="secondary-btn" id="resetImageBtn" title="Boshlang‘ich rasmga qaytish">Namuna</button>
+
+        <h3 class="section-title">Studiya bo‘limlari</h3>
+        <div class="studio-tabs" id="studioTabs">
+          <button class="studio-tab active" data-tab="photo" type="button">🖼 Rasm</button>
+          <button class="studio-tab" data-tab="name" type="button">✨ Ism & Logo</button>
+          <button class="studio-tab" data-tab="templates" type="button">🎨 Shablonlar</button>
         </div>
-        <div class="gallery-strip" id="galleryStrip"></div>
-        <p class="hint-text">PNG, JPG, WebP — bir nechta rasm yuklash, sudrab tashlash yoki <b>Ctrl+V</b> mumkin.</p>
+
+        <!-- TAB 1: Photo Upload -->
+        <div class="studio-tab-pane active" id="tabPanePhoto">
+          <div class="upload-row">
+            <label class="primary-btn upload-label" for="imageUpload">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span>Rasm yuklash</span>
+            </label>
+            <input type="file" id="imageUpload" accept="image/*" multiple hidden />
+            <button class="secondary-btn" id="resetImageBtn" title="Boshlang‘ich rasmga qaytish">Namuna</button>
+          </div>
+          <div class="gallery-strip" id="galleryStrip"></div>
+          <p class="hint-text">PNG, JPG, WebP — bir nechta rasm yuklash, sudrab tashlash yoki <b>Ctrl+V</b> mumkin.</p>
+        </div>
+
+        <!-- TAB 2: Neon Name & Logo Creator -->
+        <div class="studio-tab-pane" id="tabPaneName">
+          <div class="name-creator-box">
+            <input
+              type="text"
+              id="neonNameInput"
+              class="text-input"
+              maxlength="24"
+              value="GLOW KING"
+              placeholder="Ismingiz yoki Nik yozing..."
+            />
+            <input
+              type="text"
+              id="neonSubInput"
+              class="text-input"
+              maxlength="32"
+              value="LEGENDARY EDITION"
+              placeholder="Qo‘shimcha yozuv (ixtiyoriy)..."
+            />
+            <div class="emblem-grid" id="emblemGrid">
+              <button class="emblem-chip active" data-emblem="crown" type="button">👑 Toj</button>
+              <button class="emblem-chip" data-emblem="eagle" type="button">🦅 Burgut</button>
+              <button class="emblem-chip" data-emblem="cyber" type="button">💻 Kiber</button>
+              <button class="emblem-chip" data-emblem="heart" type="button">❤️ Yurak</button>
+              <button class="emblem-chip" data-emblem="star" type="button">⭐ Yulduz</button>
+              <button class="emblem-chip" data-emblem="shield" type="button">🛡 Qalqon</button>
+            </div>
+            <button class="primary-btn" id="generateNameArtBtn" type="button" style="width:100%">
+              ✦ Ismdan 3D & Neon Animatsiya Chizish
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3: Ready Procedural 3D Templates -->
+        <div class="studio-tab-pane" id="tabPaneTemplates">
+          <div class="template-grid" id="templateGrid">
+            <button class="template-card" data-tpl="royal_crown" type="button">👑 Qirol Toji</button>
+            <button class="template-card" data-tpl="cyber_skull" type="button">🤖 Kiber Niqob</button>
+            <button class="template-card" data-tpl="cosmic_rocket" type="button">🚀 Kosmik Raketa</button>
+            <button class="template-card" data-tpl="neon_heart" type="button">💖 Kristall Yurak</button>
+            <button class="template-card" data-tpl="sport_trophy" type="button">🏆 Chempion Kubogi</button>
+            <button class="template-card" data-tpl="magic_lotus" type="button">🌸 Nurli Nilufar</button>
+          </div>
+          <p class="hint-text">Tayyor 3D shakllardan birini tanlab, 18 xil animatsiyada sinab ko‘ring!</p>
+        </div>
       </div>
 
       <div class="panel-section">
@@ -408,6 +464,6 @@
   </div>
 
   <script src="default-image.js"></script>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>

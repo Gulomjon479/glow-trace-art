@@ -178,6 +178,8 @@ def get_user_status(chat_id):
             "premium_days_left": max(0, (prem_until - now) // 86400) if is_premium else 0,
             "can_upload": can_upload,
             "videos_created": int(u.get("videos_created", 0) or 0),
+            "score": int(u.get("score", 0) or 0),
+            "referrals_count": int(u.get("referrals_count", 0) or 0),
             "settings": dict(data["settings"]),
         }, changed
     return _with_lock(_op)

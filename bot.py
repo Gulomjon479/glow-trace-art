@@ -108,19 +108,37 @@ def send_start(chat_id, first_name="", username=""):
 
     text = (
         f"👥 <b>Bot foydalanuvchilari: {st['total_users']} ta</b> | 🎬 <b>Videolar: {st['total_videos']} ta</b>\n"
+        f"🏆 <b>Ballaringiz: {status.get('score', 0)} ball</b>\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        f"✦ <b>{greeting}Glow Trace Art PRO</b> botiga xush kelibsiz!\n\n"
+        f"✦ <b>{greeting}Glow Trace Art PRO Super-Botiga</b> xush kelibsiz!\n\n"
         f"{plan_line}\n\n"
-        "🎬 <b>Qanday ishlaydi:</b>\n"
-        "1. Pastdagi tugma orqali ilovani oching.\n"
-        "2. 12 ta super animatsiyadan birini tanlang va rasmingizni yuklang.\n"
-        "3. <b>«Botga tayyor video yuborish»</b> tugmasini bosing — tayyor <b>MP4 video</b> "
-        "avtomatik shu botga keladi!"
+        "🌟 <b>Botdagi 6 ta ajoyib bo‘lim:</b>\n"
+        "1️⃣ <b>🎬 3D & Neon Video Studiya</b> — Rasm va Ismdan 18 xil MP4 video!\n"
+        "2️⃣ <b>🧠 Intellektual Viktorina</b> — Har 100 ballda +1 BEPUL VIDEO!\n"
+        "3️⃣ <b>🎮 Mini-O‘yinlar & Duel</b> — X-O, Tosh-Qaychi-Qog‘oz, Yashirin Son, Kazino!\n"
+        "4️⃣ <b>🪄 Kreativ Ustaxona</b> — Chiroyli VIP Ismlar, QR-Kod, Kiber-Shifr!\n"
+        "5️⃣ <b>🌟 Qiziqarli Olam</b> — Psixologik Test, Faktlar, Motivatsiya, Kosmik Yosh!\n"
+        "6️⃣ <b>👤 Profil & Referal</b> — Do‘stlarni taklif qilib Bepul Video olish va Top-10!"
     )
 
     inline_kb = [
-        [{"text": "✦ Glow Trace Art ochish (Telegram)", "web_app": {"url": personal_url}}],
-        [{"text": "🌐 Brauzerda ochish (Chrome / Safari)", "url": personal_url}],
+        [{"text": "🎬 1. Glow 3D & Neon Video Studiya (Ochish)", "web_app": {"url": personal_url}}],
+        [
+            {"text": "✨ Ismdan 3D Video Yaratish", "web_app": {"url": f"{personal_url}&tab=name"}},
+            {"text": "🌐 Brauzerda ochish", "url": personal_url},
+        ],
+        [
+            {"text": "🧠 2. Viktorina (Quiz)", "callback_data": "sec_quiz"},
+            {"text": "🎮 3. Mini-O‘yinlar", "callback_data": "sec_games"},
+        ],
+        [
+            {"text": "🪄 4. Kreativ Ustaxona", "callback_data": "sec_tools"},
+            {"text": "🌟 5. Qiziqarli Olam", "callback_data": "sec_fun"},
+        ],
+        [
+            {"text": "👤 6. Profil & Bepul Video", "callback_data": "sec_profile"},
+            {"text": "🏆 Top-10 Reyting", "callback_data": "sec_leaderboard"},
+        ],
         [
             {"text": "💎 Tariflar / To‘lov", "callback_data": "tarifs"},
             {"text": "📖 Qo‘llanma", "callback_data": "help"},

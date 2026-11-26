@@ -4508,9 +4508,10 @@
     updatePlayButtonUI();
   });
 
-  // Spacebar toggles Play/Pause (when not typing in quote input)
+  // Spacebar toggles Play/Pause (when not typing in quote/name inputs)
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && document.activeElement !== quoteInput) {
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (e.code === 'Space' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
       e.preventDefault();
       state.playing = !state.playing;
       updatePlayButtonUI();
@@ -4762,10 +4763,434 @@
     });
   }
 
+  // ===== Studio Tabs: Photo / Neon Name & Logo / 3D Templates =====
+  const studioTabs = document.getElementById('studioTabs');
+  const tabPanePhoto = document.getElementById('tabPanePhoto');
+  const tabPaneName = document.getElementById('tabPaneName');
+  const tabPaneTemplates = document.getElementById('tabPaneTemplates');
+  const neonNameInput = document.getElementById('neonNameInput');
+  const neonSubInput = document.getElementById('neonSubInput');
+  const emblemGrid = document.getElementById('emblemGrid');
+  const generateNameArtBtn = document.getElementById('generateNameArtBtn');
+  const templateGrid = document.getElementById('templateGrid');
+  let selectedEmblem = 'crown';
+
+  function switchStudioTab(tabKey) {
+    if (!studioTabs) return;
+    studioTabs.querySelectorAll('.studio-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabKey);
+    });
+    if (tabPanePhoto) tabPanePhoto.classList.toggle('active', tabKey === 'photo');
+    if (tabPaneName) tabPaneName.classList.toggle('active', tabKey === 'name');
+    if (tabPaneTemplates) tabPaneTemplates.classList.toggle('active', tabKey === 'templates');
+  }
+
+  if (studioTabs) {
+    studioTabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('.studio-tab');
+      if (!btn) return;
+      switchStudioTab(btn.dataset.tab);
+    });
+  }
+
+  function drawVectorEmblem(g, type, cx, cy, R) {
+    g.save();
+    g.translate(cx, cy);
+    g.strokeStyle = '#ffffff';
+    g.fillStyle = '#000000';
+    g.lineWidth = 7;
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+
+    if (type === 'crown') {
+      // Royal multi-peak crown with jewels & inner geometry
+      g.beginPath();
+      g.moveTo(-R * 0.78, R * 0.48);
+      g.lineTo(-R * 0.92, -R * 0.28);
+      g.lineTo(-R * 0.45, R * 0.08);
+      g.lineTo(0, -R * 0.62);
+      g.lineTo(R * 0.45, R * 0.08);
+      g.lineTo(R * 0.92, -R * 0.28);
+      g.lineTo(R * 0.78, R * 0.48);
+      g.closePath();
+      g.stroke();
+
+      g.beginPath();
+      g.moveTo(-R * 0.78, R * 0.64);
+      g.lineTo(R * 0.78, R * 0.64);
+      g.moveTo(-R * 0.72, R * 0.32);
+      g.lineTo(R * 0.72, R * 0.32);
+      g.stroke();
+
+      const peaks = [[-R * 0.92, -R * 0.36], [0, -R * 0.72], [R * 0.92, -R * 0.36], [0, R * 0.06], [-R * 0.42, R * 0.2], [R * 0.42, R * 0.2]];
+      for (const [px, py] of peaks) {
+        g.beginPath();
+        g.arc(px, py, R * 0.08, 0, Math.PI * 2);
+        g.stroke();
+      }
+    } else if (type === 'eagle') {
+      // Majestic spread-wing cyber eagle crest
+      for (const dir of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(0, R * 0.2);
+        g.quadraticCurveTo(dir * R * 0.45, -R * 0.55, dir * R * 1.05, -R * 0.38);
+        g.lineTo(dir * R * 0.85, -R * 0.1);
+        g.lineTo(dir * R * 0.96, R * 0.06);
+        g.lineTo(dir * R * 0.68, R * 0.22);
+        g.lineTo(dir * R * 0.76, R * 0.38);
+        g.lineTo(0, R * 0.55);
+        g.stroke();
+      }
+      g.beginPath();
+      g.arc(0, -R * 0.22, R * 0.22, 0, Math.PI * 2);
+      g.moveTo(0, -R * 0.08);
+      g.lineTo(-R * 0.1, R * 0.14);
+      g.lineTo(0, R * 0.28);
+      g.lineTo(R * 0.1, R * 0.14);
+      g.closePath();
+      g.stroke();
+    } else if (type === 'cyber') {
+      // Hexagon cyber circuit core
+      for (const s of [1, 0.66]) {
+        g.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI) / 3 - Math.PI / 6;
+          const x = Math.cos(a) * R * 0.85 * s;
+          const y = Math.sin(a) * R * 0.85 * s;
+          if (i === 0) g.moveTo(x, y);
+          else g.lineTo(x, y);
+        }
+        g.closePath();
+        g.stroke();
+      }
+      g.font = `bold ${Math.round(R * 0.55)}px Consolas, monospace`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.strokeText('</>', 0, 0);
+    } else if (type === 'heart') {
+      for (const s of [1, 0.68]) {
+        const hr = R * 0.85 * s;
+        g.beginPath();
+        g.moveTo(0, hr * 0.75);
+        g.bezierCurveTo(-hr * 1.2, hr * 0.1, -hr * 0.95, -hr * 0.85, 0, -hr * 0.32);
+        g.bezierCurveTo(hr * 0.95, -hr * 0.85, hr * 1.2, hr * 0.1, 0, hr * 0.75);
+        g.stroke();
+      }
+    } else if (type === 'star') {
+      for (const s of [1, 0.52]) {
+        g.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const rad = (i % 2 === 0 ? R * 0.88 : R * 0.38) * s;
+          const a = (i * Math.PI) / 5 - Math.PI / 2;
+          const x = Math.cos(a) * rad;
+          const y = Math.sin(a) * rad;
+          if (i === 0) g.moveTo(x, y);
+          else g.lineTo(x, y);
+        }
+        g.closePath();
+        g.stroke();
+      }
+    } else if (type === 'shield') {
+      for (const s of [1, 0.72]) {
+        const sr = R * 0.85 * s;
+        g.beginPath();
+        g.moveTo(0, -sr * 0.85);
+        g.lineTo(sr * 0.78, -sr * 0.52);
+        g.quadraticCurveTo(sr * 0.78, sr * 0.42, 0, sr * 0.92);
+        g.quadraticCurveTo(-sr * 0.78, sr * 0.42, -sr * 0.78, -sr * 0.52);
+        g.closePath();
+        g.stroke();
+      }
+    }
+    g.restore();
+  }
+
+  function generateNeonNameDataUri(mainText, subText, emblemType = 'crown') {
+    const c = document.createElement('canvas');
+    c.width = 800;
+    c.height = 940;
+    const g = c.getContext('2d');
+
+    g.fillStyle = '#000000';
+    g.fillRect(0, 0, c.width, c.height);
+
+    // Outer & inner ornamental neon frame
+    g.strokeStyle = '#68b8ff';
+    g.lineWidth = 6;
+    g.strokeRect(56, 66, 688, 808);
+    g.strokeStyle = '#d4a8ff';
+    g.lineWidth = 3;
+    g.strokeRect(74, 84, 652, 772);
+
+    // Corner stars / accents
+    const corners = [[98, 108], [702, 108], [98, 832], [702, 832]];
+    g.strokeStyle = '#ffd280';
+    g.lineWidth = 4;
+    for (const [cx, cy] of corners) {
+      g.beginPath();
+      g.arc(cx, cy, 14, 0, Math.PI * 2);
+      g.moveTo(cx - 24, cy);
+      g.lineTo(cx + 24, cy);
+      g.moveTo(cx, cy - 24);
+      g.lineTo(cx, cy + 24);
+      g.stroke();
+    }
+
+    // Center Emblem
+    drawVectorEmblem(g, emblemType, 400, 305, 145);
+
+    // Decorative divider under emblem
+    g.strokeStyle = '#6effd8';
+    g.lineWidth = 4;
+    g.beginPath();
+    g.moveTo(150, 490);
+    g.lineTo(360, 490);
+    g.moveTo(440, 490);
+    g.lineTo(650, 490);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(400, 472);
+    g.lineTo(418, 490);
+    g.lineTo(400, 508);
+    g.lineTo(382, 490);
+    g.closePath();
+    g.stroke();
+
+    // Main Name Typography (auto-fit font size)
+    const cleanMain = (mainText || 'GLOW ART').trim().toUpperCase();
+    let fontSize = cleanMain.length <= 7 ? 96 : cleanMain.length <= 11 ? 74 : cleanMain.length <= 16 ? 56 : 44;
+    g.font = `900 ${fontSize}px "Segoe UI", Arial, sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+
+    // Double outline for rich dual contour lines
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 8;
+    g.strokeText(cleanMain, 400, 595);
+
+    // Subtitle
+    const cleanSub = (subText || '').trim().toUpperCase();
+    if (cleanSub) {
+      g.font = '700 28px "Segoe UI", Arial, sans-serif';
+      g.strokeStyle = '#ffd59e';
+      g.lineWidth = 3.5;
+      g.strokeText(cleanSub, 400, 695);
+    }
+
+    // Bottom pedestal lines
+    g.strokeStyle = '#88c0ff';
+    g.lineWidth = 4;
+    g.beginPath();
+    g.moveTo(210, 760);
+    g.lineTo(590, 760);
+    g.moveTo(280, 782);
+    g.lineTo(520, 782);
+    g.stroke();
+
+    return c.toDataURL('image/png');
+  }
+
+  function generateTemplateDataUri(tplKey) {
+    const c = document.createElement('canvas');
+    c.width = 800;
+    c.height = 940;
+    const g = c.getContext('2d');
+    g.fillStyle = '#000000';
+    g.fillRect(0, 0, c.width, c.height);
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+
+    if (tplKey === 'royal_crown') {
+      return generateNeonNameDataUri('QIROL', 'ROYAL CROWN VIP', 'crown');
+    }
+    if (tplKey === 'neon_heart') {
+      return generateNeonNameDataUri('SEVGI', 'FOREVER TOGETHER', 'heart');
+    }
+
+    // Outer Halo Ring
+    g.strokeStyle = '#7cc4ff';
+    g.lineWidth = 5;
+    g.beginPath();
+    g.arc(400, 440, 290, 0, Math.PI * 2);
+    g.stroke();
+    g.strokeStyle = '#c49bff';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(400, 440, 265, 0, Math.PI * 2);
+    g.stroke();
+
+    g.save();
+    g.translate(400, 440);
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 6;
+
+    if (tplKey === 'cyber_skull') {
+      // Futuristic Cyber Samurai / Robot Mask
+      g.beginPath();
+      g.moveTo(0, -185);
+      g.lineTo(145, -110);
+      g.lineTo(165, 35);
+      g.lineTo(95, 175);
+      g.lineTo(0, 210);
+      g.lineTo(-95, 175);
+      g.lineTo(-165, 35);
+      g.lineTo(-145, -110);
+      g.closePath();
+      g.stroke();
+
+      // Visor Eyes
+      for (const dir of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(dir * 28, -25);
+        g.lineTo(dir * 120, -55);
+        g.lineTo(dir * 105, 5);
+        g.closePath();
+        g.stroke();
+      }
+      // Mouth Grille
+      for (let i = -3; i <= 3; i++) {
+        g.beginPath();
+        g.moveTo(i * 22, 75);
+        g.lineTo(i * 22, 145);
+        g.stroke();
+      }
+    } else if (tplKey === 'cosmic_rocket') {
+      // Detailed space rocket launching over planet rings
+      g.beginPath();
+      g.moveTo(0, -210);
+      g.quadraticCurveTo(85, -90, 75, 75);
+      g.lineTo(-75, 75);
+      g.quadraticCurveTo(-85, -90, 0, -210);
+      g.stroke();
+
+      // Fins
+      for (const dir of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(dir * 75, 10);
+        g.lineTo(dir * 145, 95);
+        g.lineTo(dir * 75, 95);
+        g.stroke();
+      }
+      // Windows
+      g.beginPath();
+      g.arc(0, -65, 36, 0, Math.PI * 2);
+      g.moveTo(22, 5);
+      g.arc(0, 5, 22, 0, Math.PI * 2);
+      g.stroke();
+      // Flame plume
+      g.beginPath();
+      g.moveTo(-45, 75);
+      g.lineTo(0, 195);
+      g.lineTo(45, 75);
+      g.moveTo(-25, 75);
+      g.lineTo(0, 150);
+      g.lineTo(25, 75);
+      g.stroke();
+    } else if (tplKey === 'sport_trophy') {
+      // Champion Cup Trophy
+      g.beginPath();
+      g.moveTo(-115, -165);
+      g.lineTo(115, -165);
+      g.quadraticCurveTo(110, 15, 0, 45);
+      g.quadraticCurveTo(-110, 15, -115, -165);
+      g.stroke();
+      // Handles
+      for (const dir of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(dir * 112, -135);
+        g.bezierCurveTo(dir * 195, -135, dir * 185, -10, dir * 75, 5);
+        g.stroke();
+      }
+      // Stem & Base
+      g.beginPath();
+      g.moveTo(-25, 42);
+      g.lineTo(-35, 130);
+      g.lineTo(35, 130);
+      g.lineTo(25, 42);
+      g.strokeRect(-95, 130, 190, 50);
+      g.stroke();
+      drawVectorEmblem(g, 'star', 0, -75, 58);
+    } else if (tplKey === 'magic_lotus') {
+      // Geometric Mandala Lotus
+      for (let layer = 0; layer < 2; layer++) {
+        const count = layer === 0 ? 12 : 8;
+        const rOut = layer === 0 ? 195 : 125;
+        for (let i = 0; i < count; i++) {
+          const a = (i * Math.PI * 2) / count;
+          g.save();
+          g.rotate(a);
+          g.beginPath();
+          g.moveTo(0, 0);
+          g.quadraticCurveTo(48, -rOut * 0.55, 0, -rOut);
+          g.quadraticCurveTo(-48, -rOut * 0.55, 0, 0);
+          g.stroke();
+          g.restore();
+        }
+      }
+    }
+    g.restore();
+    return c.toDataURL('image/png');
+  }
+
+  if (emblemGrid) {
+    emblemGrid.addEventListener('click', (e) => {
+      const chip = e.target.closest('.emblem-chip');
+      if (!chip) return;
+      emblemGrid.querySelectorAll('.emblem-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedEmblem = chip.dataset.emblem || 'crown';
+    });
+  }
+
+  if (generateNameArtBtn) {
+    generateNameArtBtn.addEventListener('click', () => {
+      const mainTxt = (neonNameInput && neonNameInput.value) || 'GLOW KING';
+      const subTxt = (neonSubInput && neonSubInput.value) || '';
+      const uri = generateNeonNameDataUri(mainTxt, subTxt, selectedEmblem);
+      if (quoteInput && mainTxt.trim()) {
+        quoteInput.value = `✦ ${mainTxt.trim().toUpperCase()} ✦`;
+        state.quote = quoteInput.value;
+      }
+      addToGalleryAndLoad(uri, `Ism: ${mainTxt}`);
+    });
+  }
+
+  if (templateGrid) {
+    templateGrid.addEventListener('click', (e) => {
+      const card = e.target.closest('.template-card');
+      if (!card) return;
+      templateGrid.querySelectorAll('.template-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      const uri = generateTemplateDataUri(card.dataset.tpl);
+      addToGalleryAndLoad(uri, card.textContent.trim());
+    });
+  }
+
   // ===== Bootstrap =====
   initTelegramIntegration();
   initAmbientDust();
-  if (window.DEFAULT_IMAGE_DATA_URI) {
+
+  const initParams = new URLSearchParams(window.location.search);
+  const startTab = initParams.get('tab');
+  const startName = initParams.get('name');
+  if (startName && neonNameInput) {
+    neonNameInput.value = startName.slice(0, 24);
+    switchStudioTab('name');
+    const uri = generateNeonNameDataUri(neonNameInput.value, 'VIP EDITION', selectedEmblem);
+    if (quoteInput) {
+      quoteInput.value = `✦ ${neonNameInput.value.toUpperCase()} ✦`;
+      state.quote = quoteInput.value;
+    }
+    addToGalleryAndLoad(uri, `Ism: ${neonNameInput.value}`);
+  } else if (startTab === 'name') {
+    switchStudioTab('name');
+    const uri = generateNeonNameDataUri((neonNameInput && neonNameInput.value) || 'GLOW KING', 'VIP EDITION', selectedEmblem);
+    addToGalleryAndLoad(uri, 'Neon Ism');
+  } else if (startTab === 'templates') {
+    switchStudioTab('templates');
+    const uri = generateTemplateDataUri('royal_crown');
+    addToGalleryAndLoad(uri, 'Qirol Toji');
+  } else if (window.DEFAULT_IMAGE_DATA_URI) {
     addToGalleryAndLoad(window.DEFAULT_IMAGE_DATA_URI, 'Namuna');
   }
   requestAnimationFrame(tick);
